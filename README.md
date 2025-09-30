@@ -45,7 +45,7 @@ Our software team is building an **AWS-hosted application** that integrates real
 
 The CTS-Glove Project aims to **transform physical therapy for carpal tunnel patients** by:  
 - Making **therapy progress measurable** instead of subjective.  
-- Providing patients with **motivating visual feedback** that mirrors familiar stock-style performance charts.  
+- Providing patients with **motivating visual feedback** that mirrors familiar performance charts.  
 - Giving clinicians **quantitative insights** into both recovery strength and exertion levels.  
 - Enabling **remote monitoring and support**, helping patients stay on track outside the clinic.  
 
