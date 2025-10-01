@@ -12,7 +12,8 @@ Start here. Everything in our project depends on being comfortable with JavaScri
 
 **Step 1: JavaScript Basics**  
 - [MDN JavaScript Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide) – official, in-depth beginner resource.  
-- [JavaScript.info](https://javascript.info/) – approachable explanations and exercises.  
+- [JavaScript.info](https://javascript.info/) – approachable explanations and exercises.
+- [Traversy Media Vanilla Javascript](https://www.youtube.com/watch?v=hdI2bqOjy3c&list=PLillGF-RfqbbnEGy3ROiLWk7JMCuSyQtX) - the first video most importantly, as well as the next 4 are really good!
 
 **Step 2: Level Up With TypeScript**  
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html) – official docs.  
