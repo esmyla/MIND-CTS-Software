@@ -12,7 +12,8 @@ Start here. Everything in our project depends on being comfortable with JavaScri
 
 **Step 1: JavaScript Basics**  
 - [MDN JavaScript Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide) – official, in-depth beginner resource.  
-- [JavaScript.info](https://javascript.info/) – approachable explanations and exercises.  
+- [JavaScript.info](https://javascript.info/) – approachable explanations and exercises.
+- [Traversy Media Vanilla Javascript](https://www.youtube.com/watch?v=hdI2bqOjy3c&list=PLillGF-RfqbbnEGy3ROiLWk7JMCuSyQtX) - the first video most importantly, as well as the next 4 are really good!
 
 **Step 2: Level Up With TypeScript**  
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html) – official docs.  
@@ -51,7 +52,7 @@ Supabase is our backend for storing user data, session logs, and authentication.
 - [Supabase Docs](https://supabase.com/docs) – official documentation.  
 
 **Step 2: Build Something Small**  
-- [Supabase Crash Course (Fireship)](https://www.youtube.com/watch?v=KJ1fJ7KVO1c) – quickstart video showing how to wire Supabase into a frontend app.  
+- [Supabase Crash Course (Google Login Button)]([https://www.youtube.com/watch?v=KJ1fJ7KVO1c](https://www.youtube.com/watch?v=2SEz6SK_ekE&pp=ygUqY29ubmVjdGluZyBzaWduIGluIHdpdGggZ29vZ2xlIG9uIHN1cGFiYXNl0gcJCfsJAYcqIYzv)) – quickstart video showing how to wire Supabase into a frontend app with google oauth.  
 
 ---
 
