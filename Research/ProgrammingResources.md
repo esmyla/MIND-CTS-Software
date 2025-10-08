@@ -52,7 +52,7 @@ Supabase is our backend for storing user data, session logs, and authentication.
 - [Supabase Docs](https://supabase.com/docs) – official documentation.  
 
 **Step 2: Build Something Small**  
-- [Supabase Crash Course (Google Login Button)]([https://www.youtube.com/watch?v=KJ1fJ7KVO1c](https://www.youtube.com/watch?v=2SEz6SK_ekE&pp=ygUqY29ubmVjdGluZyBzaWduIGluIHdpdGggZ29vZ2xlIG9uIHN1cGFiYXNl0gcJCfsJAYcqIYzv)) – quickstart video showing how to wire Supabase into a frontend app with google oauth.  
+- [Supabase Crash Course (Google Login Button)](https://www.youtube.com/watch?v=2SEz6SK_ekE) – quickstart video showing how to wire Supabase into a frontend app with google oauth.  
 
 ---
 
