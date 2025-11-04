@@ -1,23 +1,30 @@
 import { useEffect, useState } from "react";
 import './App.css'
 import { supabase } from '../supabaseClient';
+import { ThemeSupa } from '@supabase/auth-ui-shared'
 
 function App() {
-  const [instruments, setInstruments] = useState([]);
+  const [session, setSession] = useState(null);
+  
   useEffect(() => {
-    getInstruments();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
-  async function getInstruments() {
-    const { data } = await supabase.from("instruments").select();
-    setInstruments(data);
+
+  if(!session) {
+    return <Auth supbaseClient={supabase} appearance={{ theme: ThemeSupa }} />
+  } else {
+    return <div>Logged in!</div>
   }
-  return (
-    <ul>
-      {instruments.map((instrument) => (
-        <li key={instrument.name}>{instrument.name}</li>
-      ))}
-    </ul>
-  );
 }
 
 export default App
