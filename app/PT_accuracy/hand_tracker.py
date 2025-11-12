@@ -8,7 +8,7 @@ import os
 
 # ----- Visual/logic config -----
 ANGLE_TOLERANCE = 0.75      # degrees around target to trigger the ding
-RESET_THRESHOLD = 2.0       # degrees near zero to re-arm the ding
+RESET_THRESHOLD = 4.0      # degrees near zero to re-arm the ding
 LINE_COLOR = (0, 255, 0)    # green for the hand line (0->12)
 VERT_COLOR = (0, 255, 255)  # yellow for vertical reference
 TEXT_COLOR = (255, 0, 255)
@@ -87,6 +87,8 @@ def main():
     armed = True
     reps = 0
 
+    baseline_id0 = None
+
     try:
         while True:
             success, img = cap.read()
@@ -109,7 +111,9 @@ def main():
 
             id0_xy = None
             id12_xy = None
+            id9_xy = None
             angle_deg = None
+            angle_deg_2 = None
 
             if results.multi_hand_landmarks:
                 for handLms in results.multi_hand_landmarks:
@@ -131,6 +135,8 @@ def main():
 
                         if idx == 0:
                             id0_xy = (cx, cy)
+                        elif idx == 9:
+                            id9_xy = (cx, cy)
                         elif idx == 12:
                             id12_xy = (cx, cy)
 
@@ -149,6 +155,21 @@ def main():
                         angle_rad = math.atan2(abs(dx), abs(dy))
                         angle_deg = math.degrees(angle_rad)
 
+                    if id0_xy is not None and id9_xy is not None:
+                        # Thinner line between wrist (0) and middle fingertip (12)
+                        cv2.line(img, id0_xy, id9_xy, LINE_COLOR, 1)
+                        # Smaller endpoint markers
+                        cv2.circle(img, id0_xy, 1, LINE_COLOR, cv2.FILLED)
+                        cv2.circle(img, id9_xy, 1, LINE_COLOR, cv2.FILLED)
+
+                        dx2 = id9_xy[0] - id0_xy[0]
+                        dy2 = id9_xy[1] - id0_xy[1]
+
+                        # returns 0..pi/2
+                        angle_rad_2 = math.atan2(abs(dx2), abs(dy2))
+                        angle_deg_2 = math.degrees(angle_rad_2)
+
+
             # HUD: angle
             if angle_deg is not None:
                 cv2.putText(
@@ -162,9 +183,9 @@ def main():
                 )
 
             # Triggering & level up logic
-            if angle_deg is not None:
+            if angle_deg is not None and angle_deg_2 is not None:
                 # Trigger once when close to target
-                if armed and (angle_deg > angle_target):
+                if armed and (angle_deg > angle_target and (abs(angle_deg_2 - angle_deg) < 10)):
                     ding()
                     armed = False
                     reps += 1
@@ -201,6 +222,35 @@ def main():
                 # Re-arm once near zero
                 if (not armed) and angle_deg <= RESET_THRESHOLD:
                     armed = True
+                    # When re-armed, update the baseline to the current wrist position if available
+                    if 'id0_xy' in locals() and id0_xy is not None:
+                        baseline_id0 = id0_xy
+                    
+                if ('id0_xy' in locals() and 'id12_xy' in locals()
+                    and id0_xy is not None and id12_xy is not None):
+
+                    # If no baseline yet (e.g., first valid detection), set it now.
+                    if baseline_id0 is None:
+                        baseline_id0 = id0_xy
+
+                    # Current "hand length" in pixels from wrist(0) to middle fingertip(12)
+                    hand_len = math.hypot(id12_xy[0] - id0_xy[0], id12_xy[1] - id0_xy[1])
+
+                    if hand_len > 0:
+                        # How far the wrist moved from the baseline
+                        wrist_drift = math.hypot(id0_xy[0] - baseline_id0[0], id0_xy[1] - baseline_id0[1])
+
+                        # If wrist drift exceeds a third of the 0->12 distance, warn and reset reps
+                        if wrist_drift > (hand_len / 3.0):
+                            warn_text = "Try not to move your arm, just your wrist."
+                            # Place the text near the top center but keep it on-screen
+                            x_text = max(10, w // 2 - 320)
+                            cv2.putText(img, warn_text, (x_text, 50),
+                            cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 2)
+                            reps -= 1   
+                            if reps < 0:
+                                reps = 0
+
 
             # FPS
             cTime = time.time()
@@ -219,6 +269,9 @@ def main():
             cv2.imshow("Image", img)
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
+                break
+            # Check if the window was closed by the user
+            if cv2.getWindowProperty("Image", cv2.WND_PROP_VISIBLE) < 1:
                 break
 
     finally:
