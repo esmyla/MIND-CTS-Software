@@ -219,6 +219,15 @@ def main():
                         state["reps_goal"] = reps_goal
                         save_state(STATE_FILE, state)
 
+                if (abs(angle_deg_2 - angle_deg) > 10):
+                    warn_text = "Keep your hand straight."
+                    # Place the text near the top center but keep it on-screen
+                    x_text = max(10, w // 2 - 150)
+                    cv2.putText(img, warn_text, (x_text, 80),
+                    cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 2)   
+                    if reps < 0:
+                        reps = 0
+                        
                 # Re-arm once near zero
                 if (not armed) and angle_deg <= RESET_THRESHOLD:
                     armed = True
@@ -246,10 +255,10 @@ def main():
                             # Place the text near the top center but keep it on-screen
                             x_text = max(10, w // 2 - 320)
                             cv2.putText(img, warn_text, (x_text, 50),
-                            cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 2)
-                            reps -= 1   
+                            cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 2)   
                             if reps < 0:
                                 reps = 0
+            
 
 
             # FPS
