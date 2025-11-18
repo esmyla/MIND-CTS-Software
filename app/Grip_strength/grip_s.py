@@ -5,9 +5,6 @@ import time
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=1)
 
-#Replace once baseline exists
-base_GT = float
-
 time_window = 10  # Time window in seconds
 start_time = time.time()
 grip_vals = []
@@ -41,14 +38,4 @@ except KeyboardInterrupt:
     print(f"Maximum grip value recorded: {max_val}")
 
 finally:
-    if base_GT is None:
-        print("There are no baseline values.")
-    else:
-        r_GT = max_val / base_GT #Float
-
-    #print session results
-    print("\nGrip session result:")
-    print("Max grip value:", max_val)
-    print("Ratio to baseline grip strength:", r_GT)
-
 ser.close()  # Close the serial port when done
