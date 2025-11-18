@@ -248,28 +248,18 @@ def main():
                     if hand_len > 0:
                         # How far the wrist moved from the baseline
                         wrist_drift = math.hypot(id0_xy[0] - baseline_id0[0], id0_xy[1] - baseline_id0[1])
-
+                        
                         # If wrist drift exceeds a third of the 0->12 distance, warn and reset reps
                         if wrist_drift > (hand_len / 3.0):
+                            armed = False  # Disarm if wrist drift detected
                             warn_text = "Try not to move your arm, just your wrist."
                             # Place the text near the top center but keep it on-screen
                             x_text = max(10, w // 2 - 320)
                             cv2.putText(img, warn_text, (x_text, 50),
                             cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 0, 255), 2)   
-                            if reps < 0:
-                                reps = 0
+                            
             
-
-
-            # FPS
-            cTime = time.time()
-            dt = cTime - pTime
-            fps = 1.0 / dt if dt > 0 else 0.0
-            pTime = cTime
-
-            # HUD: FPS, targets, reps
-            cv2.putText(img, f"{int(fps)} FPS", (10, 70),
-                        cv2.FONT_HERSHEY_PLAIN, 2, TEXT_COLOR, 2)
+            # HUD: target angle and reps
             cv2.putText(img, f"Target: {int(angle_target)} deg", (10, 160),
                         cv2.FONT_HERSHEY_PLAIN, 2, HUD_COLOR, 2)
             cv2.putText(img, f"Reps: {reps}/{reps_goal}", (10, 200),
