@@ -33,47 +33,32 @@ With finger tracking, you add a new layer that:
 
 ```mermaid
 flowchart TD
-    %% --- START ---
+
     A([START]) --> B[Initialize finger tracking and grip sensor modules]
 
-    %% --- HAND DETECTION ---
     B --> C{Is hand detected?}
     C -- NO --> C
-    C -- YES --> D[Check READY position
-(neutral hand, baseline force)]
+    C -- YES --> D[Check READY position]
 
-    %% --- READY STATE ---
     D --> E{Is READY state?}
     E -- NO --> D
-    E -- YES --> F[Reset buffers
-Wait for user to begin gripping]
+    E -- YES --> F[Reset buffers and wait for user grip]
 
-    %% --- START DETECTION ---
-    F --> G{Flexion > MIN_FLEX_ANGLE
-OR force > MIN_FORCE_THRESHOLD?}
+    F --> G{Flexion > threshold OR Force > threshold?}
     G -- NO --> F
-    G -- YES --> H[Mark START time
-Begin recording data]
+    G -- YES --> H[Mark START time and begin recording]
 
-    %% --- ACTIVE PHASE ---
-    H --> I{Grip still active?
-(force or flexion above threshold)}
+    H --> I{Grip still active?}
     I -- YES --> H
     I -- NO --> J[Begin relaxation check]
 
-    %% --- END DETECTION ---
-    J --> K{Relaxed for STILLNESS_FRAMES?}
+    J --> K{Relaxed long enough?}
     K -- NO --> H
-    K -- YES --> L[Mark END time
-Stop recording]
+    K -- YES --> L[Mark END time and stop recording]
 
-    %% --- STORE METRICS ---
-    L --> M[Compute metrics:
-peak force, duration, etc.]
+    L --> M[Compute metrics and process data]
     M --> N[Store to database]
 
-    %% --- COMPLETE ---
     N --> O{Start another set?}
     O -- YES --> D
     O -- NO --> P([END])
-```
