@@ -5,7 +5,7 @@ import time
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=1)
 
-time_window = 10  # Time window in seconds
+time_window = 10  # Time window in seconds, the user should be made aware of this in frontend
 start_time = time.time()
 grip_vals = []
 
