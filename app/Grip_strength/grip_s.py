@@ -38,4 +38,4 @@ except KeyboardInterrupt:
     print(f"Maximum grip value recorded: {max_val}")
 
 finally:
-ser.close()  # Close the serial port when done
+    ser.close()  # Close the serial port when done
