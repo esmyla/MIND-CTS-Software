@@ -8,8 +8,7 @@ This module records **pinch strength** using distance/force values captured betw
 
 Data is streamed over serial from an Arduino (or similar device) in the format:
 
-```text
-index:123,middle:145
+
 ```mermaid
 flowchart TD
 
