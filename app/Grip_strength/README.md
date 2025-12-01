@@ -33,40 +33,47 @@ With finger tracking, you add a new layer that:
 
 ```mermaid
 flowchart TD
-
     %% --- START ---
-    A([START]) --> B[Initialize finger-tracking<br/>+ grip sensor modules]
+    A([START]) --> B[Initialize finger tracking and grip sensor modules]
 
     %% --- HAND DETECTION ---
     B --> C{Is hand detected?}
     C -- NO --> C
-    C -- YES --> D[Check READY position<br/>(neutral hand, baseline force)]
+    C -- YES --> D[Check READY position
+(neutral hand, baseline force)]
 
     %% --- READY STATE ---
     D --> E{Is READY state?}
     E -- NO --> D
-    E -- YES --> F[Reset buffers<br/>Wait for user to begin gripping]
+    E -- YES --> F[Reset buffers
+Wait for user to begin gripping]
 
     %% --- START DETECTION ---
-    F --> G{Flexion > MIN_FLEX_ANGLE<br/>OR Force > MIN_FORCE_THRESHOLD?}
+    F --> G{Flexion > MIN_FLEX_ANGLE
+OR force > MIN_FORCE_THRESHOLD?}
     G -- NO --> F
-    G -- YES --> H[Mark START time<br/>Begin recording sensor + tracking data]
+    G -- YES --> H[Mark START time
+Begin recording data]
 
     %% --- ACTIVE PHASE ---
-    H --> I{Grip still active?<br/>(force or flexion above threshold)}
+    H --> I{Grip still active?
+(force or flexion above threshold)}
     I -- YES --> H
     I -- NO --> J[Begin relaxation check]
 
     %% --- END DETECTION ---
-    J --> K{Relaxed for<br/>STILLNESS_FRAMES?}
+    J --> K{Relaxed for STILLNESS_FRAMES?}
     K -- NO --> H
-    K -- YES --> L[Mark END time<br/>Stop recording]
+    K -- YES --> L[Mark END time
+Stop recording]
 
     %% --- STORE METRICS ---
-    L --> M[Compute metrics:<br/>peak force, duration, etc.]
-    M --> N[Store to database<br/>(existing pipeline)]
+    L --> M[Compute metrics:
+peak force, duration, etc.]
+    M --> N[Store to database]
 
     %% --- COMPLETE ---
     N --> O{Start another set?}
     O -- YES --> D
     O -- NO --> P([END])
+```
