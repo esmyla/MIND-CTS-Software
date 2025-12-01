@@ -10,7 +10,7 @@ Data is streamed over serial from an Arduino (or similar device) in the format:
 
 ```text
 index:123,middle:145
-
+```mermaid
 flowchart TD
 
     A([START]) --> B[Initialize serial port]
@@ -28,3 +28,4 @@ flowchart TD
     H --> I[Compute minima and ratios]
     I --> J[Print pinch session summary]
     J --> K([END])
+```
