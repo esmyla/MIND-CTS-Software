@@ -294,8 +294,10 @@ def main():
     # ===================================================================
     # USER CONFIGURATION - CHANGE THIS TO YOUR USER UUID
     # ===================================================================
+
+
     # Replace with the actual UUID from your Supabase auth system
-    USER_ID = "your-user-uuid-here"
+    USER_ID = "stephen-uuid-1234-5678-9012-abcdefabcdef"
     
     # Load user's state from Supabase
     state = load_state(USER_ID)
