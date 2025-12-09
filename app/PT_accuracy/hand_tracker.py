@@ -3,8 +3,8 @@ Wrist Flexion Tracking Application with Supabase Integration
 ============================================================
 This application tracks wrist flexion angles using MediaPipe hand tracking
 and stores progress data in a Supabase database. Users complete repetitions
-at target angles, with each session tracking total reps and showing the
-previous session's count as a soft goal.
+at target angles in both forward and backward directions, with each session 
+tracking total reps and showing the previous session's count as a soft goal.
 
 Dependencies:
 - OpenCV (cv2): Video capture and image processing
@@ -57,16 +57,24 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Define the default starting state and limits for the progression system
 
 DEFAULT_STATE = {
-    "angle_target": 30,   # Starting target angle in degrees (how far to flex wrist)
-    "reps_last_session": 0,  # Reps from previous session (used as soft goal)
+    "angle_target_forward": 30,    # Starting target angle for forward flexion
+    "angle_target_backward": 15,   # Starting target angle for backward flexion
+    "reps_last_session": 0,        # Reps from previous session (used as soft goal)
 }
 
 # Angle target boundaries
-MAX_ANGLE_TARGET = 60     # Maximum flexion angle target (safety limit)
-MIN_ANGLE_TARGET = 25     # Minimum flexion angle target (starting difficulty)
+MAX_ANGLE_TARGET_FORWARD = 70     # Maximum flexion angle target (safety limit)
+MIN_ANGLE_TARGET_FORWARD = 25     # Minimum flexion angle target (starting difficulty)
+MAX_ANGLE_TARGET_BACKWARD = 50    # Maximum extension angle target (safety limit)
+MIN_ANGLE_TARGET_BACKWARD = 10    # Minimum extension angle target (starting difficulty)
 
 # Angle increment when user manually levels up
 ANGLE_INCREMENT = 5       # Degrees to add to target when leveling up
+NUM_REPS_TO_LEVEL_UP = 5  # Number of reps needed to automatically level up
+
+# Variable setting for handedness
+HANDEDNESS = "Left"      # "Right" or "Left" hand tracking
+FORWARD_TILT = True   # True = fingers bend toward palm, False = backward tilt
 
 # ===================================================================
 # AUDIO FEEDBACK FUNCTION
@@ -170,15 +178,17 @@ def load_state(user_id: str) -> dict:
     Load the most recent training state from Supabase for a given user.
     
     This function retrieves the user's latest progress including their current
-    target angle and the rep count from their last session (used as a soft goal).
-    If no data exists (new user), returns default starting values.
+    target angles for both forward and backward flexion, and the rep count from 
+    their last session (used as a soft goal). If no data exists (new user), 
+    returns default starting values.
     
     Args:
         user_id (str): The UUID of the user whose state to load
         
     Returns:
         dict: Dictionary containing:
-            - angle_target (int): Current target flexion angle in degrees
+            - angle_target_forward (int): Current target forward flexion angle
+            - angle_target_backward (int): Current target backward flexion angle
             - reps_last_session (int): Reps from previous session (soft goal)
             - session (int): Current session number (for reference)
             
@@ -201,9 +211,10 @@ def load_state(user_id: str) -> dict:
         if response.data:
             latest = response.data[0]
             return {
-                "angle_target": latest["degree"],           # Target angle from DB
-                "reps_last_session": latest["repetitions"], # Last session's reps
-                "session": latest["session"],               # Session number
+                "angle_target_forward": latest.get("degree_forward", DEFAULT_STATE["angle_target_forward"]),
+                "angle_target_backward": latest.get("degree_backward", DEFAULT_STATE["angle_target_backward"]),
+                "reps_last_session": latest["repetitions"],
+                "session": latest["session"],
             }
         
         # No data found - user is new, return default starting state
@@ -214,7 +225,8 @@ def load_state(user_id: str) -> dict:
         # On error, return defaults so the app can still run
         return {**DEFAULT_STATE, "session": 0}
 
-def save_session(user_id: str, angle_target: int, reps_completed: int, level_up: bool = False) -> None:
+def save_session(user_id: str, angle_target_forward: int, angle_target_backward: int, 
+                reps_completed: int, level_up: bool = False) -> None:
     """
     Save a completed training session to Supabase.
     
@@ -224,14 +236,16 @@ def save_session(user_id: str, angle_target: int, reps_completed: int, level_up:
     
     Args:
         user_id (str): The UUID of the user
-        angle_target (int): The target angle used during this session
+        angle_target_forward (int): The forward target angle used during this session
+        angle_target_backward (int): The backward target angle used during this session
         reps_completed (int): Total number of successful reps in this session
         level_up (bool): Whether this session ended with a level up
                          If True, increments the session number
         
     Database Operation:
-        INSERT INTO flexion (user_id, session, degree, repetitions, level_up, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO flexion (user_id, session, degree_forward, degree_backward, 
+                           repetitions, level_up, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         
     Note: This function INSERTS new rows rather than UPDATING existing ones,
           creating a complete audit trail of all training sessions.
@@ -251,7 +265,8 @@ def save_session(user_id: str, angle_target: int, reps_completed: int, level_up:
         record = {
             "user_id": user_id,
             "session": current_session,
-            "degree": angle_target,
+            "degree_forward": angle_target_forward,
+            "degree_backward": angle_target_backward,
             "repetitions": reps_completed,
             "level_up": level_up,
             "created_at": datetime.utcnow().isoformat()  # UTC timestamp
@@ -262,7 +277,7 @@ def save_session(user_id: str, angle_target: int, reps_completed: int, level_up:
         
         # Confirm success
         if response.data:
-            print(f"✓ Session saved: {reps_completed} reps at {angle_target}° (Session #{current_session})")
+            print(f"✓ Session saved: {reps_completed} reps at {angle_target_forward}°F/{angle_target_backward}°B (Session #{current_session})")
         
     except Exception as e:
         print(f"✗ Error saving session to Supabase: {e}")
@@ -288,6 +303,7 @@ def main():
     Controls:
     - 'q': Quit and save session
     - 'l': Level up (increase target angle by 5°)
+    - 'b': Toggle between forward and backward tilt
     - Window close button: Quit and save session
     """
     
@@ -295,14 +311,18 @@ def main():
     # USER CONFIGURATION - CHANGE THIS TO YOUR USER UUID
     # ===================================================================
 
-
     # Replace with the actual UUID from your Supabase auth system
     USER_ID = "stephen-uuid-1234-5678-9012-abcdefabcdef"
     
     # Load user's state from Supabase
     state = load_state(USER_ID)
-    angle_target = float(state.get("angle_target", DEFAULT_STATE["angle_target"]))
+    angle_target_forward = float(state.get("angle_target_forward", DEFAULT_STATE["angle_target_forward"]))
+    angle_target_backward = float(state.get("angle_target_backward", DEFAULT_STATE["angle_target_backward"]))
     reps_last_session = int(state.get("reps_last_session", DEFAULT_STATE["reps_last_session"]))
+
+    # Set initial direction based on FORWARD_TILT setting
+    global FORWARD_TILT
+    current_angle_target = angle_target_forward if FORWARD_TILT else angle_target_backward
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)
@@ -318,8 +338,8 @@ def main():
     hands = mpHands.Hands(
         static_image_mode=False,        # False = video stream mode (faster)
         max_num_hands=1,                # Track only one hand
-        min_detection_confidence=0.6,   # Confidence threshold for initial detection
-        min_tracking_confidence=0.5     # Confidence threshold for tracking across frames
+        min_detection_confidence=0.4,   # Confidence threshold for initial detection
+        min_tracking_confidence=0.25     # Confidence threshold for tracking across frames
     )
     mpDraw = mp.solutions.drawing_utils
 
@@ -340,6 +360,9 @@ def main():
 
     try:
         while True:
+            # Update current target based on direction
+            current_angle_target = angle_target_forward if FORWARD_TILT else angle_target_backward
+            
             # ===================================================================
             # FRAME CAPTURE AND PREPROCESSING
             # ===================================================================
@@ -423,8 +446,8 @@ def main():
 
                         # Calculate angle from vertical (0° = straight up, 90° = horizontal)
                         # atan2(abs(dx), abs(dy)) gives angle from vertical axis
-                        angle_rad = math.atan2(abs(dx), abs(dy))
-                        angle_deg = math.degrees(angle_rad)
+                        angle_rad = math.atan2(dx, dy)
+                        angle_deg = 180 - math.degrees(angle_rad)
 
                     # ===================================================================
                     # CALCULATE ALIGNMENT ANGLE (WRIST TO FINGER BASE)
@@ -439,8 +462,8 @@ def main():
                         dx2 = id9_xy[0] - id0_xy[0]
                         dy2 = id9_xy[1] - id0_xy[1]
 
-                        angle_rad_2 = math.atan2(abs(dx2), abs(dy2))
-                        angle_deg_2 = math.degrees(angle_rad_2)
+                        angle_rad_2 = math.atan2(dx2, dy2)
+                        angle_deg_2 = 180 - math.degrees(angle_rad_2)
 
             # ===================================================================
             # DISPLAY CURRENT ANGLE
@@ -468,10 +491,30 @@ def main():
                 # 1. System is armed (not in cooldown)
                 # 2. Angle exceeds target
                 # 3. Hand is straight (angle_deg and angle_deg_2 are similar)
-                if armed and (angle_deg > angle_target and (abs(angle_deg_2 - angle_deg) < 10)):
+                if armed and (abs(angle_deg_2 - angle_deg) < 10) and ((FORWARD_TILT and HANDEDNESS == "Right" and angle_deg < (360 - current_angle_target) and angle_deg > 180) or (not FORWARD_TILT and HANDEDNESS == "Right" and angle_deg > current_angle_target and angle_deg < 180) or (FORWARD_TILT and HANDEDNESS == "Left" and angle_deg > current_angle_target and angle_deg < 180) or (not FORWARD_TILT and HANDEDNESS == "Left" and angle_deg < (360-current_angle_target) and angle_deg > 180)):
                     ding()  # Audio feedback
                     armed = False  # Disarm to prevent double-counting
                     reps += 1  # Increment rep counter
+                    if reps >= NUM_REPS_TO_LEVEL_UP:
+                        # Automatically level up if enough reps completed
+                        save_session(USER_ID, int(angle_target_forward), int(angle_target_backward), reps, level_up=True)
+                        
+                        # Increase the target for current direction
+                        if FORWARD_TILT:
+                            angle_target_forward += ANGLE_INCREMENT
+                        else:
+                            angle_target_backward += ANGLE_INCREMENT
+                        
+                        reps = 0  # Reset rep count for new level
+                        # Show level up message
+                        temp_img = img.copy()
+                        direction = "Forward" if FORWARD_TILT else "Backward"
+                        new_target = angle_target_forward if FORWARD_TILT else angle_target_backward
+                        cv2.putText(temp_img, f"Level Up! New {direction} target: {int(new_target)} deg",
+                                    (w // 2 - 350, h // 2),
+                                    cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 3)
+                        cv2.imshow("Image", temp_img)
+                        cv2.waitKey(1500)  # Show message for 1.5 seconds
 
                     # Display "DING!" text briefly
                     cv2.putText(img, "DING!", (w // 2 - 70, 120),
@@ -492,7 +535,7 @@ def main():
                 # RE-ARM SYSTEM
                 # -----------------------------------------------------------
                 # Once the wrist returns to near-zero angle, allow next rep
-                if (not armed) and angle_deg <= RESET_THRESHOLD:
+                if (not armed) and (angle_deg <= RESET_THRESHOLD or angle_deg >= (360 - RESET_THRESHOLD)):
                     armed = True
                     # Update baseline wrist position for drift detection
                     if id0_xy is not None:
@@ -526,9 +569,10 @@ def main():
             # ===================================================================
             # HEADS-UP DISPLAY (HUD)
             # ===================================================================
-            # Show target angle
-            cv2.putText(img, f"Target: {int(angle_target)} deg", (10, 160),
-                        cv2.FONT_HERSHEY_PLAIN, 2, HUD_COLOR, 2)
+            # Show both target angles
+            tilt = "Forward" if FORWARD_TILT else "Backward"
+            cv2.putText(img, f"Target ({tilt}): {int(current_angle_target)} deg  [F:{int(angle_target_forward)}° B:{int(angle_target_backward)}°]", 
+                       (10, 160), cv2.FONT_HERSHEY_PLAIN, 1.7, HUD_COLOR, 2)
             
             # Show current reps with last session's count as reference
             if reps_last_session > 0:
@@ -539,8 +583,8 @@ def main():
                             cv2.FONT_HERSHEY_PLAIN, 2, HUD_COLOR, 2)
 
             # Show controls hint
-            cv2.putText(img, "'q' to quit | 'l' to level up", (10, h - 20),
-                        cv2.FONT_HERSHEY_PLAIN, 1.5, HUD_COLOR, 1)
+            cv2.putText(img, "'q' quit | 'l' level up | 'b' toggle direction     Hand: " + HANDEDNESS, 
+                       (10, h - 20), cv2.FONT_HERSHEY_PLAIN, 1, HUD_COLOR, 1)
 
             # ===================================================================
             # DISPLAY AND INPUT HANDLING
@@ -555,13 +599,19 @@ def main():
             # Level up on 'l' key (increase target angle)
             elif key == ord('l'):
                 # Save current session before leveling up
-                save_session(USER_ID, int(angle_target), reps, level_up=False)
+                save_session(USER_ID, int(angle_target_forward), int(angle_target_backward), reps, level_up=False)
                 
-                # Increase angle target
-                if angle_target + ANGLE_INCREMENT <= MAX_ANGLE_TARGET:
-                    angle_target += ANGLE_INCREMENT
+                # Increase angle target for current direction
+                if FORWARD_TILT:
+                    if angle_target_forward + ANGLE_INCREMENT <= MAX_ANGLE_TARGET_FORWARD:
+                        angle_target_forward += ANGLE_INCREMENT
+                    else:
+                        angle_target_forward = MIN_ANGLE_TARGET_FORWARD  # Wrap around if at max
                 else:
-                    angle_target = MIN_ANGLE_TARGET  # Wrap around if at max
+                    if angle_target_backward + ANGLE_INCREMENT <= MAX_ANGLE_TARGET_BACKWARD:
+                        angle_target_backward += ANGLE_INCREMENT
+                    else:
+                        angle_target_backward = MIN_ANGLE_TARGET_BACKWARD  # Wrap around if at max
                 
                 # Reset for new level
                 reps_last_session = reps
@@ -569,11 +619,35 @@ def main():
                 
                 # Show level up message
                 temp_img = img.copy()
-                cv2.putText(temp_img, f"Level Up! New target: {int(angle_target)} deg",
-                            (w // 2 - 250, h // 2),
+                direction = "Forward" if FORWARD_TILT else "Backward"
+                new_target = angle_target_forward if FORWARD_TILT else angle_target_backward
+                cv2.putText(temp_img, f"Level Up! New {direction} target: {int(new_target)} deg",
+                            (w // 2 - 350, h // 2),
                             cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 3)
                 cv2.imshow("Image", temp_img)
                 cv2.waitKey(1500)  # Show message for 1.5 seconds
+            
+            # Toggle direction on 'b' key
+            elif key == ord('b'):
+                # Save current progress before switching
+                save_session(USER_ID, int(angle_target_forward), int(angle_target_backward), reps, level_up=False)
+                
+                # Toggle direction
+                FORWARD_TILT = not FORWARD_TILT
+                
+                # Reset reps for new direction
+                reps_last_session = reps
+                reps = 0
+                
+                # Show direction change message
+                temp_img = img.copy()
+                direction = "Forward" if FORWARD_TILT else "Backward"
+                new_target = angle_target_forward if FORWARD_TILT else angle_target_backward
+                cv2.putText(temp_img, f"Direction: {direction} | Target: {int(new_target)} deg",
+                            (w // 2 - 300, h // 2),
+                            cv2.FONT_HERSHEY_PLAIN, 3, (255, 165, 0), 3)
+                cv2.imshow("Image", temp_img)
+                cv2.waitKey(1000)  # Show message for 1 second
             
             # Check if window was closed
             if cv2.getWindowProperty("Image", cv2.WND_PROP_VISIBLE) < 1:
@@ -584,14 +658,8 @@ def main():
         # CLEANUP AND SESSION SAVE
         # ===================================================================
         # Save the completed session to Supabase before exiting
-        print(f"\nSession complete: {reps} reps at {int(angle_target)}°")
-        save_session(USER_ID, int(angle_target), reps, level_up=False)
-        
-        # Release resources
-        cap.release()
-        cv2.destroyAllWindows()
-        
-        print("Session saved to Supabase. Goodbye!")
+        print(f"\nSession complete: {reps} reps at Forward:{int(angle_target_forward)}° Backward:{int(angle_target_backward)}°")
+        save_session(USER_ID, int(angle_target_forward), int(angle_target_backward), reps, level_up=False)
 
 if __name__ == "__main__":
     main()
