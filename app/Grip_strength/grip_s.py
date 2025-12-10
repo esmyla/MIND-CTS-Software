@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import serial
 import time
+import sys
 
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=1)
@@ -38,15 +39,15 @@ try:
 except KeyboardInterrupt:
     print("Exiting program.")
 
-    max_val = 0
-    #Todo: Add handling for no values?
-    for val in grip_vals:
-        if val > max_val:
-            max_val = val
 finally:
     ser.close()  # Close the serial port when done
-#print(f"Maximum grip value recorded: {max_val}")
-
+max_val = 0
+if len(grip_vals) == 0:
+    print("No data received from Arduino.")
+    sys.exit(1)
+for val in grip_vals:
+    if val > max_val:
+        max_val = val
 baseline_data = supabase.table("baseline").select("base_grip").eq("UUID", UUID).execute()
 baseline_value = float(baseline_data[0]["base_grip"])
 ratio = max_val / baseline_value
