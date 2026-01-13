@@ -2,6 +2,7 @@
 import time
 import random
 
+
 # Configure the serial port
 #ser = serial.Serial('COM3', 9600, timeout=0.1)
 
@@ -16,17 +17,19 @@ start = time.time()
 ind_vals = []
 mid_vals = []
 
-while time.time() - start < time_window:
-     ind_vals.append(random.randint(0,100))
-     mid_vals.append(random.randint(0,100))
-     time.sleep(0.1)
-     print(f"Simulated index finger value: {ind_vals[-1]}")
-     print(f"Simulated middle finger value:  {mid_vals[-1]}")
-'''
+# code is using dummy data
+USE_DUMMY = True
+dummy_stream = dummy_data()
+
 try:
     while time.time() - start < time_window:
         if ser.in_waiting > 0:
-            line = ser.readline().decode().strip()
+            # test code for dummy data
+            if USE_DUMMY:
+                line = next(dummy_stream)
+            else:
+             line = ser.readline().decode().strip()   
+            #line = ser.readline().decode().strip()
             print("Received:", line)
 
             try:
@@ -52,36 +55,34 @@ try:
         time.sleep(0.1) # small delay between sensor reads
 except KeyboardInterrupt:
     print("Exiting.")
-    '''
-#finally:
-if base_IT is None or base_MT is None:
-        print("There are no baseline values.")
-else:
-        if len(ind_vals) > 0:
-            I_T = min(ind_vals)
-        else:
-            I_T = 0
+finally:
+    # Calculates the maximum pinch strength
+    I_T = max(ind_vals) if len(ind_vals) > 0 else 0
+    M_T = max(mid_vals) if len(mid_vals) > 0 else 0
 
-        if len(mid_vals) > 0:
-            M_T = min(mid_vals)
-        else:
-            M_T = 0
+    print("\nMaximum Pinch Strength Result:")
+    print("Index-Thumb(IT):", I_T)
+    print("Middle-Thumb(MT):", M_T)
 
-        if base_IT:
-            r_IT = I_T / base_IT
-        else:
-            r_IT = 0
+    # computes ratios given that the baselines exist
+    if base_IT not in (None, 0):
+        r_IT = I_T / base_IT
+        print("Ratio of Index-Thumb(r_IT):", round(r_IT, 3))
+    else:
+        print("There aer no baseline values for the Index-Thumb ratio.")
 
-        if base_MT:
-            r_MT = M_T / base_MT
-        else:
-            r_MT = 0
+    if base_MT not in (None, 0):
+        r_MT = M_T / base_MT
+        print("Ratio of Middle-Thumb(r_MT):", round(r_MT, 3))
+    else:
+        print("There are no baseline values for the Middle-Thumb ratio.")
 
-        # prints results for session
-        print("\nPinch session result:")
+    
+        # prints results for maximum pinch strength session
+        print("\n Maximum Pinch Strength Result:")
         print("Index-Thumb(IT):", I_T)
         print("Middle-Thumb(MT):", M_T)
         print("Ratio of Index-Thumb(r_IT):", round(r_IT, 3))
         print("Ratio of Middle-Thumb(r_MT):", round(r_MT, 3))
 
-   # ser.close() # closes serial port when finished 
+    ser.close() # closes serial port when finished 
