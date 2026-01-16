@@ -273,7 +273,7 @@ def main():
                         current_angle = calculate_angle(id0_xy, id12_xy)
             
             # Show initial instructions
-            if show_instructions and time.time() - instructions_shown_time < 5.0:
+            if show_instructions and time.time() - instructions_shown_time < 20.0:
                 instruction_text = [
                     "WRIST FLEXION CALIBRATION",
                     "",

@@ -1,3 +1,8 @@
+#TODO:
+# Make an  onboarding version of the hand flexion app that has user tilt forward their as far as they can. Once they angle of flexion has stabalized (within +/- 4 degree range held for atleast two seconds), record that number. Then have them do that again 5 times, take the average of the 5 attempts, subtract 10, and set that as their starting angle in the supabase database
+# then after that, test their backward motion the same way, take that average, subtract 5, and set that as their starting backward angle in the database
+
+
 """
 Wrist Flexion Tracking Application with Supabase Integration
 ============================================================
@@ -358,6 +363,10 @@ def main():
     
     baseline_id0 = None               # Baseline wrist position (to detect arm movement)
 
+    show_message = False
+    message_start = 0
+    message_duration = 2.0  # seconds
+
     try:
         while True:
             # Update current target based on direction
@@ -491,30 +500,34 @@ def main():
                 # 1. System is armed (not in cooldown)
                 # 2. Angle exceeds target
                 # 3. Hand is straight (angle_deg and angle_deg_2 are similar)
-                if armed and (abs(angle_deg_2 - angle_deg) < 10) and ((FORWARD_TILT and HANDEDNESS == "Right" and angle_deg < (360 - current_angle_target) and angle_deg > 180) or (not FORWARD_TILT and HANDEDNESS == "Right" and angle_deg > current_angle_target and angle_deg < 180) or (FORWARD_TILT and HANDEDNESS == "Left" and angle_deg > current_angle_target and angle_deg < 180) or (not FORWARD_TILT and HANDEDNESS == "Left" and angle_deg < (360-current_angle_target) and angle_deg > 180)):
-                    ding()  # Audio feedback
-                    armed = False  # Disarm to prevent double-counting
-                    reps += 1  # Increment rep counter
+                if armed and (abs(angle_deg_2 - angle_deg) < 10) and (
+                    (FORWARD_TILT and HANDEDNESS == "Right" and angle_deg < (360 - current_angle_target) and angle_deg > 180) or
+                    (not FORWARD_TILT and HANDEDNESS == "Right" and angle_deg > current_angle_target and angle_deg < 180) or
+                    (FORWARD_TILT and HANDEDNESS == "Left" and angle_deg > current_angle_target and angle_deg < 180) or
+                    (not FORWARD_TILT and HANDEDNESS == "Left" and angle_deg < (360-current_angle_target) and angle_deg > 180)):
+                    ding()
+                    armed = False
+                    reps += 1
+
                     if reps >= NUM_REPS_TO_LEVEL_UP:
-                        # Automatically level up if enough reps completed
+                    # ---- trigger the message ----
+                        show_message = True
+                        message_start = time.time()
+                        FORWARD_TILT = False if FORWARD_TILT else True
+                        direction = "Forward" if FORWARD_TILT else "Backward"
+                        new_target = angle_target_forward if FORWARD_TILT else angle_target_backward
+
+                        # Level up logic
                         save_session(USER_ID, int(angle_target_forward), int(angle_target_backward), reps, level_up=True)
-                        
-                        # Increase the target for current direction
+
                         if FORWARD_TILT:
                             angle_target_forward += ANGLE_INCREMENT
                         else:
                             angle_target_backward += ANGLE_INCREMENT
+
+                        reps = 0
+
                         
-                        reps = 0  # Reset rep count for new level
-                        # Show level up message
-                        temp_img = img.copy()
-                        direction = "Forward" if FORWARD_TILT else "Backward"
-                        new_target = angle_target_forward if FORWARD_TILT else angle_target_backward
-                        cv2.putText(temp_img, f"Level Up! New {direction} target: {int(new_target)} deg",
-                                    (w // 2 - 350, h // 2),
-                                    cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 3)
-                        cv2.imshow("Image", temp_img)
-                        cv2.waitKey(1500)  # Show message for 1.5 seconds
 
                     # Display "DING!" text briefly
                     cv2.putText(img, "DING!", (w // 2 - 70, 120),
@@ -525,7 +538,7 @@ def main():
                 # -----------------------------------------------------------
                 # If the two angles differ significantly, the hand is bent/twisted
                 # This prevents cheating by curling fingers instead of flexing wrist
-                if (abs(angle_deg_2 - angle_deg) > 10):
+                if (abs(angle_deg_2 - angle_deg) > 20 and abs(angle_deg_2 - angle_deg) < 300):
                     warn_text = "Keep your hand straight."
                     x_text = max(10, w // 2 - 150)
                     cv2.putText(img, warn_text, (x_text, 80),
@@ -589,7 +602,27 @@ def main():
             # ===================================================================
             # DISPLAY AND INPUT HANDLING
             # ===================================================================
-            cv2.imshow("Image", img)
+            
+            # Start with the normal frame
+            frame_to_show = img.copy()
+
+            # Overlay the message for the duration
+            if show_message:
+                if time.time() - message_start < message_duration:
+                    cv2.putText(
+                        frame_to_show,
+                        f"Level Up! New {direction} target: {int(new_target)} deg",
+                        (w // 2, h // 2),
+                        cv2.FONT_HERSHEY_PLAIN,
+                        2,
+                        (0, 255, 0),
+                        2
+                    )
+                else:
+                    show_message = False  # stop showing after 2 seconds
+
+            # Only ONE imshow per frame for that window
+            cv2.imshow("Image", frame_to_show)
             key = cv2.waitKey(1) & 0xFF
             
             # Quit on 'q' key
