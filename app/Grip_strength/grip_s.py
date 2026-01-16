@@ -14,7 +14,7 @@ session_id = "" #Get UUID, find most recent session_id, +1
 load_dotenv()
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-time_window = 10  # Time window in seconds, the user should be made aware of this in frontend
+time_window = 3  # Time window in seconds, the user should be made aware of this in frontend
 start_time = time.time()
 grip_vals = []
 
@@ -41,13 +41,9 @@ except KeyboardInterrupt:
 
 finally:
     ser.close()  # Close the serial port when done
-max_val = 0
-if len(grip_vals) == 0:
-    print("No data received from Arduino.")
-    sys.exit(1)
-for val in grip_vals:
-    if val > max_val:
-        max_val = val
+
+max_val = max(grip_vals) if grip_vals else 0
+print(f"Max_grip={max_val}")
 baseline_data = supabase.table("baseline").select("base_grip").eq("UUID", UUID).execute()
 baseline_value = float(baseline_data[0]["base_grip"])
 ratio = max_val / baseline_value
