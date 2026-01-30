@@ -5,6 +5,8 @@ import os
 import serial
 import time
 import sys
+import random
+import numpy as np  
 
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=1)
@@ -41,13 +43,24 @@ except KeyboardInterrupt:
 
 finally:
     ser.close()  # Close the serial port when done
-max_val = 0
-if len(grip_vals) == 0:
-    print("No data received from Arduino.")
-    sys.exit(1)
-for val in grip_vals:
-    if val > max_val:
-        max_val = val
+if start_time != 0:
+    while time.time() - start_time < time_window:
+        grip_vals.append(random.randint(0, 100))
+        time.sleep(0.2)   
+        print(f"Simulated grip value: {grip_vals[-1]}")
+    max_val = 0
+    if len(grip_vals) == 0:
+        print("No data received from Arduino.")
+        sys.exit(1)
+    sorted_vals = np.sort(grip_vals)[::-1]  # Sort in descending order
+    len60 = int(0.6 * len(sorted_vals))
+    top60_vals = sorted_vals[:len60]
+    max_val = np.mean(top60_vals)
+    print(f"Max grip value recorded: {max_val}")
+else :
+    print("Grip test not started due to insufficient initial value.") 
+
+
 baseline_data = supabase.table("baseline").select("base_grip").eq("UUID", UUID).execute()
 baseline_value = float(baseline_data[0]["base_grip"])
 ratio = max_val / baseline_value
