@@ -43,12 +43,12 @@ BACKWARD_OFFSET = 5             # Degrees to subtract from backward average
 
 # Visual constants
 LINE_COLOR = (0, 255, 0)
-TEXT_COLOR = (255, 255, 255)
+TEXT_COLOR = (0, 0, 255)
 SUCCESS_COLOR = (0, 255, 0)
 WARNING_COLOR = (0, 165, 255)
 
 # User configuration
-HANDEDNESS = "Left"  # "Right" or "Left"
+HANDEDNESS = "Right"  # "Right" or "Left"
 
 # ===================================================================
 # AUDIO FEEDBACK
@@ -319,7 +319,7 @@ def main():
                         instruction = "Tilt your wrist BACKWARD (fingers LEFT) as far as comfortable"
                 
                 cv2.putText(img, instruction,
-                           (10, 120), cv2.FONT_HERSHEY_PLAIN, 1.3, WARNING_COLOR, 2)
+                           (10, 120), cv2.FONT_HERSHEY_PLAIN, 1.1, WARNING_COLOR, 2)
                 
                 # Update calibration state
                 if current_angle is not None:
