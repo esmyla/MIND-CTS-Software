@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+
+  <body class="min-h-screen bg-white">
+    <!-- Top Bar -->
+    <header class="h-14 flex items-center justify-between px-4">
+      <!-- Hamburger -->
+      <button id="menuBtn" class="p-2 rounded-md hover:bg-gray-100" aria-label="Menu">
+        <div class="space-y-1">
+          <div class="w-6 h-0.5 bg-gray-700"></div>
+          <div class="w-6 h-0.5 bg-gray-700"></div>
+          <div class="w-6 h-0.5 bg-gray-700"></div>
+        </div>
+      </button>
+
+      <!-- Avatar circle (top right like screenshot) -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gray-200"></div>
+      </div>
+    </header>
+
+    <!-- Dropdown Menu -->
+    <div id="menu" class="hidden absolute top-14 left-4 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+      <a class="block px-4 py-3 hover:bg-gray-50" href="grip.html">Grip Strength</a>
+      <a class="block px-4 py-3 hover:bg-gray-50" href="pinch.html">Pinch Strength</a>
+      <a class="block px-4 py-3 hover:bg-gray-50" href="wrist.html">Wrist Flexion</a>
+      <a class="block px-4 py-3 hover:bg-gray-50" href="pt.html">PT Exercises</a>
+      <div class="border-t border-gray-200"></div>
+      <button id="logoutBtn" class="w-full text-left px-4 py-3 hover:bg-gray-50 text-red-600">
+        Logout
+      </button>
+    </div>
+
+    <!-- Main -->
+    <main class="px-6 pb-10">
+      <h1 class="text-center text-xl font-semibold text-gray-900 mt-10">
+        Hi! How are you doing today?
+      </h1>
+
+      <!-- Calendar (static layout like screenshot; you can swap to real calendar later) -->
+      <section class="mt-8 flex justify-center">
+        <div class="w-full max-w-sm">
+          <div class="text-center text-gray-800 font-medium">December 2025</div>
+
+          <div class="grid grid-cols-7 text-xs text-gray-500 mt-3">
+            <div class="text-center">S</div>
+            <div class="text-center">M</div>
+            <div class="text-center">T</div>
+            <div class="text-center">W</div>
+            <div class="text-center">T</div>
+            <div class="text-center">F</div>
+            <div class="text-center">S</div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-2 mt-2 text-sm">
+            <!-- Row 1 -->
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">1</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">2</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">3</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">4</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">5</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">6</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">7</div>
+
+            <!-- Row 2 -->
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">8</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">9</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">10</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">11</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">12</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">13</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">14</div>
+
+            <!-- Row 3 -->
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">15</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">16</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">17</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">18</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">19</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">20</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">21</div>
+
+            <!-- Row 4 -->
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">22</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">23</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">24</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">25</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">26</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">27</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">28</div>
+
+            <!-- Row 5 -->
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">29</div>
+            <div class="bg-blue-400 text-white rounded-md h-10 flex items-center justify-center">30</div>
+            <div class="bg-gray-200 rounded-md h-10 flex items-center justify-center">31</div>
+            <div class="bg-gray-100 rounded-md h-10"></div>
+            <div class="bg-gray-100 rounded-md h-10"></div>
+            <div class="bg-gray-100 rounded-md h-10"></div>
+            <div class="bg-gray-100 rounded-md h-10"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- To Do List -->
+      <section class="mt-10 flex justify-center">
+        <div class="w-full max-w-sm">
+          <div class="bg-gray-200 rounded-lg h-56 p-4">
+            <div class="font-semibold text-gray-700">To Do List:</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Journey -->
+      <section class="mt-8 flex justify-center">
+        <div class="w-full max-w-sm">
+          <div class="font-semibold text-gray-800 mb-3">Your Journey</div>
+          <div class="h-8 bg-gray-200 rounded-md overflow-hidden">
+            <div class="h-full bg-gray-700 w-2/3"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
