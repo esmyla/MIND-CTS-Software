@@ -8,13 +8,15 @@ import sys
 import random
 import numpy as np  
 
+load_dotenv()
+
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=1)
-UUID = "" #Somehow imported later
-session_id = "" #Get UUID, find most recent session_id, +1
 # Initialize Supabase
 load_dotenv()
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+UUID = supabase.auth.get_user().id
+session_id = "" #Get UUID, find most recent session_id, +1
 
 time_window = 10  # Time window in seconds, the user should be made aware of this in frontend
 start_time = time.time()
@@ -66,9 +68,11 @@ baseline_value = float(baseline_data[0]["base_grip"])
 ratio = max_val / baseline_value
 
 supabase.table("grip").insert({
-    "UUID": UUID,
+    # Missing "id"?
+    "user_id": UUID,
     "session_id": session_id,
     "fsr_palm": max_val,
-    "r_fsr_palm": ratio
+    "r_fsr_palm": ratio,
+    "created_at": time.time()
 }).execute()
 #This is in accordance with Box. It seems that the actual supabase table may have more columns.
