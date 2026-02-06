@@ -1,16 +1,17 @@
 /// Carpal Tunnel Syndrome Physical Therapy App
-/// 
+///
 /// A Flutter application for guided wrist flexion exercises that integrates
 /// with a Python-based hand tracking backend. Designed for rehabilitation
 /// and physical therapy with emphasis on stability, accessibility, and
 /// medical-appropriate UX.
-/// 
+///
 /// Architecture:
 /// - Material Design 3 with custom medical-friendly theme
 /// - ValueNotifier-based state management for real-time sensor updates
 /// - Websocket communication with Python backend
 /// - Multi-screen onboarding and exercise flow
 /// - Graceful error handling and offline states
+library;
 
 import 'dart:async';
 import 'dart:convert';
@@ -25,13 +26,13 @@ import 'package:flutter/services.dart';
 void main() {
   // Ensure Flutter binding is initialized before running app
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Lock orientation to portrait for consistent therapy experience
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Set system UI overlay style (status bar, navigation bar)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -41,7 +42,7 @@ void main() {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
-  
+
   runApp(const CarpalTunnelTherapyApp());
 }
 
@@ -51,14 +52,14 @@ void main() {
 
 /// Root widget that configures the MaterialApp with medical-appropriate theming
 class CarpalTunnelTherapyApp extends StatelessWidget {
-  const CarpalTunnelTherapyApp({Key? key}) : super(key: key);
+  const CarpalTunnelTherapyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Wrist Flexion Therapy',
       debugShowCheckedModeBanner: false,
-      
+
       // Theme configured for medical/therapeutic context:
       // - Calm, professional colors (soft blues and greens)
       // - High contrast for accessibility
@@ -66,11 +67,11 @@ class CarpalTunnelTherapyApp extends StatelessWidget {
       // - Clear, readable typography
       theme: ThemeData(
         useMaterial3: true,
-        
+
         // Primary color: Calm teal-blue (trust, medical, calming)
         primaryColor: const Color(0xFF2D6A7D),
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        
+
         colorScheme: const ColorScheme.light(
           primary: Color(0xFF2D6A7D),
           secondary: Color(0xFF4A9D8F),
@@ -82,7 +83,7 @@ class CarpalTunnelTherapyApp extends StatelessWidget {
           onSurface: Color(0xFF2C3E50),
           onError: Colors.white,
         ),
-        
+
         // Typography: Clear, readable, medical-appropriate
         textTheme: const TextTheme(
           displayLarge: TextStyle(
@@ -119,35 +120,27 @@ class CarpalTunnelTherapyApp extends StatelessWidget {
             color: Color(0xFF34495E),
             height: 1.5,
           ),
-          labelLarge: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
+          labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
-        
+
         // Elevated button style: Large, clear, easy to tap
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(200, 56),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 2,
           ),
         ),
-        
+
         // Card style: Soft, elevated, medical-clean
-        cardTheme: CardTheme(
+        cardTheme: const CardThemeData(
           elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
           color: Colors.white,
         ),
       ),
-      
+
       // Start with onboarding/home screen
       home: const HomeScreen(),
     );
@@ -160,16 +153,16 @@ class CarpalTunnelTherapyApp extends StatelessWidget {
 
 /// Represents the real-time state received from Python backend
 class ExerciseData {
-  final double currentAngle;          // Current wrist flexion angle in degrees
-  final double targetAngleForward;    // Target angle for forward flexion
-  final double targetAngleBackward;   // Target angle for backward extension
-  final int repetitionsCompleted;     // Reps completed this session
-  final int repetitionsLastSession;   // Reps from previous session (soft goal)
-  final bool isForwardDirection;      // True = forward flexion, False = backward
-  final bool isArmed;                 // Whether system is ready for next rep
-  final String? warningMessage;       // Warning text (hand drift, alignment, etc)
-  final bool hasLeveledUp;            // Whether user just leveled up
-  
+  final double currentAngle; // Current wrist flexion angle in degrees
+  final double targetAngleForward; // Target angle for forward flexion
+  final double targetAngleBackward; // Target angle for backward extension
+  final int repetitionsCompleted; // Reps completed this session
+  final int repetitionsLastSession; // Reps from previous session (soft goal)
+  final bool isForwardDirection; // True = forward flexion, False = backward
+  final bool isArmed; // Whether system is ready for next rep
+  final String? warningMessage; // Warning text (hand drift, alignment, etc)
+  final bool hasLeveledUp; // Whether user just leveled up
+
   const ExerciseData({
     required this.currentAngle,
     required this.targetAngleForward,
@@ -181,7 +174,7 @@ class ExerciseData {
     this.warningMessage,
     this.hasLeveledUp = false,
   });
-  
+
   /// Default/empty state when no data available
   factory ExerciseData.empty() {
     return const ExerciseData(
@@ -194,9 +187,9 @@ class ExerciseData {
       isArmed: true,
     );
   }
-  
+
   /// Parse from JSON received from Python backend
-  /// 
+  ///
   /// Expected JSON structure:
   /// {
   ///   "angle": 45.5,
@@ -222,20 +215,20 @@ class ExerciseData {
       hasLeveledUp: json['level_up'] ?? false,
     );
   }
-  
+
   /// Get current target angle based on direction
   double get currentTarget => isForwardDirection ? targetAngleForward : targetAngleBackward;
-  
+
   /// Get direction as human-readable string
   String get directionText => isForwardDirection ? 'Forward' : 'Backward';
 }
 
 /// Represents connection state with Python backend
 enum ConnectionState {
-  disconnected,   // Not connected, initial state
-  connecting,     // Attempting to connect
-  connected,      // Successfully connected and receiving data
-  error,          // Connection error occurred
+  disconnected, // Not connected, initial state
+  connecting, // Attempting to connect
+  connected, // Successfully connected and receiving data
+  error, // Connection error occurred
 }
 
 // ============================================================================
@@ -243,7 +236,7 @@ enum ConnectionState {
 // ============================================================================
 
 /// Manages websocket connection to Python backend and real-time data updates
-/// 
+///
 /// This service:
 /// - Establishes websocket connection to Python server
 /// - Parses incoming JSON exercise data
@@ -253,39 +246,38 @@ enum ConnectionState {
 class BackendService {
   // WebSocket connection instance (null when disconnected)
   WebSocket? _socket;
-  
+
   // Connection state notifier
-  final ValueNotifier<ConnectionState> connectionState = 
-      ValueNotifier(ConnectionState.disconnected);
-  
+  final ValueNotifier<ConnectionState> connectionState = ValueNotifier(
+    ConnectionState.disconnected,
+  );
+
   // Latest exercise data notifier
-  final ValueNotifier<ExerciseData> exerciseData = 
-      ValueNotifier(ExerciseData.empty());
-  
+  final ValueNotifier<ExerciseData> exerciseData = ValueNotifier(ExerciseData.empty());
+
   // Reconnection timer
   Timer? _reconnectTimer;
-  
+
   // Python backend websocket server address
   // ASSUMPTION: Python script runs a websocket server on localhost:8765
   // User must start Python script before launching Flutter app
   static const String _serverAddress = 'ws://localhost:8765';
-  
+
   /// Connect to Python backend websocket server
   Future<void> connect() async {
-    if (connectionState.value == ConnectionState.connecting || 
+    if (connectionState.value == ConnectionState.connecting ||
         connectionState.value == ConnectionState.connected) {
       return; // Already connecting or connected
     }
-    
+
     connectionState.value = ConnectionState.connecting;
-    
+
     try {
       // Attempt websocket connection with 5 second timeout
-      _socket = await WebSocket.connect(_serverAddress)
-          .timeout(const Duration(seconds: 5));
-      
+      _socket = await WebSocket.connect(_serverAddress).timeout(const Duration(seconds: 5));
+
       connectionState.value = ConnectionState.connected;
-      
+
       // Listen to incoming data stream
       _socket!.listen(
         _handleMessage,
@@ -293,35 +285,33 @@ class BackendService {
         onDone: _handleDisconnect,
         cancelOnError: false,
       );
-      
     } catch (e) {
       connectionState.value = ConnectionState.error;
       _scheduleReconnect();
     }
   }
-  
+
   /// Handle incoming message from Python backend
   void _handleMessage(dynamic message) {
     try {
       // Parse JSON message
       final Map<String, dynamic> data = jsonDecode(message as String);
-      
+
       // Update exercise data
       exerciseData.value = ExerciseData.fromJson(data);
-      
     } catch (e) {
       // Invalid JSON - log but don't crash
       debugPrint('Error parsing message from backend: $e');
     }
   }
-  
+
   /// Handle connection error
   void _handleError(dynamic error) {
     debugPrint('Backend connection error: $error');
     connectionState.value = ConnectionState.error;
     _scheduleReconnect();
   }
-  
+
   /// Handle connection closed
   void _handleDisconnect() {
     debugPrint('Backend connection closed');
@@ -329,12 +319,12 @@ class BackendService {
     _socket = null;
     _scheduleReconnect();
   }
-  
+
   /// Schedule automatic reconnection attempt
   void _scheduleReconnect() {
     // Cancel any existing reconnect timer
     _reconnectTimer?.cancel();
-    
+
     // Try to reconnect after 3 seconds
     _reconnectTimer = Timer(const Duration(seconds: 3), () {
       if (connectionState.value != ConnectionState.connected) {
@@ -342,14 +332,14 @@ class BackendService {
       }
     });
   }
-  
+
   /// Send command to Python backend (e.g., level up, toggle direction)
   void sendCommand(String command) {
     if (_socket != null && connectionState.value == ConnectionState.connected) {
       _socket!.add(jsonEncode({'command': command}));
     }
   }
-  
+
   /// Clean up resources
   void dispose() {
     _reconnectTimer?.cancel();
@@ -365,7 +355,7 @@ class BackendService {
 
 /// Home screen with welcome message and navigation to onboarding or exercise
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -378,23 +368,19 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // App icon/logo
-              Icon(
-                Icons.healing_rounded,
-                size: 80,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              
+              Icon(Icons.healing_rounded, size: 80, color: Theme.of(context).colorScheme.primary),
+
               const SizedBox(height: 32),
-              
+
               // Title
               Text(
                 'Wrist Flexion\nTherapy',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.displayLarge,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Subtitle
               Text(
                 'Guided exercises for carpal tunnel syndrome recovery',
@@ -403,9 +389,9 @@ class HomeScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Continue to onboarding button
               ElevatedButton(
                 onPressed: () {
@@ -416,9 +402,9 @@ class HomeScreen extends StatelessWidget {
                 },
                 child: const Text('Begin'),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Skip to exercise (for returning users)
               TextButton(
                 onPressed: () {
@@ -442,7 +428,7 @@ class HomeScreen extends StatelessWidget {
 // ============================================================================
 
 /// Multi-step onboarding flow that guides users through baseline calibration
-/// 
+///
 /// Based on the TODO in Python file:
 /// 1. Welcome screen
 /// 2. Instructions for forward flexion test
@@ -451,7 +437,7 @@ class HomeScreen extends StatelessWidget {
 /// 5. Backward extension baseline measurement
 /// 6. Completion and transition to exercise
 class OnboardingFlow extends StatefulWidget {
-  const OnboardingFlow({Key? key}) : super(key: key);
+  const OnboardingFlow({super.key});
 
   @override
   State<OnboardingFlow> createState() => _OnboardingFlowState();
@@ -460,24 +446,24 @@ class OnboardingFlow extends StatefulWidget {
 class _OnboardingFlowState extends State<OnboardingFlow> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  
+
   // Backend service for receiving angle data during calibration
   final BackendService _backendService = BackendService();
-  
+
   @override
   void initState() {
     super.initState();
     // Connect to backend when onboarding starts
     _backendService.connect();
   }
-  
+
   @override
   void dispose() {
     _pageController.dispose();
     _backendService.dispose();
     super.dispose();
   }
-  
+
   void _nextPage() {
     if (_currentPage < 6) {
       _pageController.animateToPage(
@@ -493,7 +479,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       );
     }
   }
-  
+
   void _previousPage() {
     if (_currentPage > 0) {
       _pageController.animateToPage(
@@ -511,10 +497,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: _currentPage > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _previousPage,
-              )
+            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _previousPage)
             : null,
       ),
       body: SafeArea(
@@ -526,14 +509,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               child: LinearProgressIndicator(
                 value: (_currentPage + 1) / 7,
                 backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
-            
+
             // Page content
             Expanded(
               child: PageView(
@@ -544,7 +525,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   _buildWelcomePage(),
                   _buildInstructionPage(
                     title: 'Let\'s Begin',
-                    description: 'When you click on NEXT you will start the introduction to training to strengthen your muscles and aid in your carpal tunnel recovery process.',
+                    description:
+                        'When you click on NEXT you will start the introduction to training to strengthen your muscles and aid in your carpal tunnel recovery process.',
                   ),
                   _buildInstructionPage(
                     title: 'Forward Flexion Test',
@@ -554,14 +536,15 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   _buildMeasurementPage(isForward: true),
                   _buildInstructionPage(
                     title: 'Backward Extension Test',
-                    description: 'Now that you know how to do the task we will calculate your baseline repetitions and angle of wrist flexion and you will begin your journey towards recovery.',
+                    description:
+                        'Now that you know how to do the task we will calculate your baseline repetitions and angle of wrist flexion and you will begin your journey towards recovery.',
                   ),
                   _buildMeasurementPage(isForward: false),
                   _buildCompletionPage(),
                 ],
               ),
             ),
-            
+
             // Navigation buttons
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -569,13 +552,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (_currentPage > 0)
-                    TextButton(
-                      onPressed: _previousPage,
-                      child: const Text('PREVIOUS'),
-                    )
+                    TextButton(onPressed: _previousPage, child: const Text('PREVIOUS'))
                   else
                     const SizedBox.shrink(),
-                  
+
                   ElevatedButton(
                     onPressed: _nextPage,
                     child: Text(_currentPage == 6 ? 'BEGIN' : 'NEXT'),
@@ -588,7 +568,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     );
   }
-  
+
   Widget _buildWelcomePage() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -601,31 +581,40 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             style: Theme.of(context).textTheme.displayMedium,
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Calendar widget showing current date
           _buildCalendarWidget(),
-          
+
           const SizedBox(height: 32),
-          
+
           // Journey progress placeholder
-          Text(
-            'Your Journey',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Your Journey', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           _buildJourneyProgress(),
         ],
       ),
     );
   }
-  
+
   Widget _buildCalendarWidget() {
     final now = DateTime.now();
-    final monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    
+    final monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -643,30 +632,34 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     );
   }
-  
+
   Widget _buildSimpleCalendar(DateTime date) {
     // Days of week header
     final daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    
+
     // Calculate first day of month and number of days
     final firstDay = DateTime(date.year, date.month, 1);
     final lastDay = DateTime(date.year, date.month + 1, 0);
     final daysInMonth = lastDay.day;
     final startWeekday = firstDay.weekday % 7; // Sunday = 0
-    
+
     return Column(
       children: [
         // Header row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: daysOfWeek.map((day) => SizedBox(
-            width: 32,
-            child: Text(
-              day,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          )).toList(),
+          children: daysOfWeek
+              .map(
+                (day) => SizedBox(
+                  width: 32,
+                  child: Text(
+                    day,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: 8),
         // Calendar grid
@@ -677,7 +670,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               final dayNumber = weekIndex * 7 + dayIndex - startWeekday + 1;
               final isCurrentDay = dayNumber == date.day;
               final isValidDay = dayNumber > 0 && dayNumber <= daysInMonth;
-              
+
               return SizedBox(
                 width: 32,
                 height: 32,
@@ -706,7 +699,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ],
     );
   }
-  
+
   Widget _buildJourneyProgress() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -720,10 +713,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'To-do List:',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('To-do List:', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 const Text('Complete baseline calibration'),
               ],
@@ -733,7 +723,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     );
   }
-  
+
   Widget _buildInstructionPage({
     required String title,
     required String description,
@@ -749,9 +739,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             style: Theme.of(context).textTheme.displayMedium,
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           if (showImage)
             Container(
               width: 200,
@@ -781,9 +771,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 ),
               ),
             ),
-          
+
           if (showImage) const SizedBox(height: 32),
-          
+
           Text(
             description,
             style: Theme.of(context).textTheme.bodyLarge,
@@ -793,7 +783,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     );
   }
-  
+
   Widget _buildMeasurementPage({required bool isForward}) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -805,9 +795,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             style: Theme.of(context).textTheme.displayMedium,
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Text(
             isForward
                 ? 'Now that you know how to do the task we will record where you are right now. Flex your wrist to the maximum of your abilities for 2 seconds 5 times.'
@@ -815,22 +805,19 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 48),
-          
+
           // Live angle visualization during calibration
           ValueListenableBuilder<ExerciseData>(
             valueListenable: _backendService.exerciseData,
             builder: (context, data, _) {
-              return _CalibrationVisualizer(
-                currentAngle: data.currentAngle,
-                isForward: isForward,
-              );
+              return _CalibrationVisualizer(currentAngle: data.currentAngle, isForward: isForward);
             },
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Instructions
           Text(
             'Hold position for 2 seconds',
@@ -843,29 +830,25 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       ),
     );
   }
-  
+
   Widget _buildCompletionPage() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.celebration_rounded,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          
+          Icon(Icons.celebration_rounded, size: 80, color: Theme.of(context).colorScheme.primary),
+
           const SizedBox(height: 32),
-          
+
           Text(
             'You have just completed your baseline testing! Congratulations on beginning your journey towards recovery!',
             style: Theme.of(context).textTheme.displayMedium,
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 48),
-          
+
           // Ready message
           Container(
             padding: const EdgeInsets.all(24),
@@ -893,11 +876,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 class _CalibrationVisualizer extends StatelessWidget {
   final double currentAngle;
   final bool isForward;
-  
-  const _CalibrationVisualizer({
-    required this.currentAngle,
-    required this.isForward,
-  });
+
+  const _CalibrationVisualizer({required this.currentAngle, required this.isForward});
 
   @override
   Widget build(BuildContext context) {
@@ -919,24 +899,20 @@ class _CalibrationVisualizer extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Hand icon placeholder
-          Icon(
-            Icons.back_hand_outlined,
-            size: 60,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          
+          Icon(Icons.back_hand_outlined, size: 60, color: Theme.of(context).colorScheme.primary),
+
           const SizedBox(height: 16),
-          
+
           // Current angle display
           Text(
             '${currentAngle.toStringAsFixed(1)}°',
-            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.displayLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Text(
             isForward ? 'Forward Flexion' : 'Backward Extension',
             style: Theme.of(context).textTheme.bodyMedium,
@@ -952,7 +928,7 @@ class _CalibrationVisualizer extends StatelessWidget {
 // ============================================================================
 
 /// Main exercise screen with real-time feedback and rep counting
-/// 
+///
 /// This screen:
 /// - Connects to Python backend via websocket
 /// - Displays live wrist angle visualization
@@ -962,7 +938,7 @@ class _CalibrationVisualizer extends StatelessWidget {
 /// - Handles direction switching and level ups
 /// - Shows warnings for improper form
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({Key? key}) : super(key: key);
+  const ExerciseScreen({super.key});
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -970,48 +946,48 @@ class ExerciseScreen extends StatefulWidget {
 
 class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStateMixin {
   final BackendService _backendService = BackendService();
-  
+
   // Animation controllers for smooth transitions
   late AnimationController _repAnimationController;
   late AnimationController _levelUpAnimationController;
-  
+
   // Track level up message display
   bool _showLevelUpMessage = false;
   Timer? _levelUpMessageTimer;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers
     _repAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _levelUpAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    
+
     // Connect to backend
     _backendService.connect();
-    
+
     // Listen for level up events
     _backendService.exerciseData.addListener(_handleExerciseDataUpdate);
   }
-  
+
   void _handleExerciseDataUpdate() {
     final data = _backendService.exerciseData.value;
-    
+
     // Trigger rep animation when new rep is detected
     // (This would be indicated by rep count increase - we'd need to track previous value)
-    
+
     // Show level up message when detected
     if (data.hasLeveledUp && !_showLevelUpMessage) {
       setState(() => _showLevelUpMessage = true);
       _levelUpAnimationController.forward(from: 0);
-      
+
       // Hide message after 2 seconds
       _levelUpMessageTimer?.cancel();
       _levelUpMessageTimer = Timer(const Duration(seconds: 2), () {
@@ -1021,7 +997,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       });
     }
   }
-  
+
   @override
   void dispose() {
     _repAnimationController.dispose();
@@ -1046,9 +1022,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
             builder: (context, state, _) {
               return Padding(
                 padding: const EdgeInsets.only(right: 16.0),
-                child: Center(
-                  child: _ConnectionStatusIndicator(state: state),
-                ),
+                child: Center(child: _ConnectionStatusIndicator(state: state)),
               );
             },
           ),
@@ -1065,7 +1039,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
             } else if (connectionState == ConnectionState.error) {
               return _buildErrorState();
             }
-            
+
             // Connected - show exercise interface
             return ValueListenableBuilder<ExerciseData>(
               valueListenable: _backendService.exerciseData,
@@ -1078,7 +1052,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildConnectingState() {
     return Center(
       child: Column(
@@ -1086,10 +1060,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 24),
-          Text(
-            'Connecting to camera...',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Connecting to camera...', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           Text(
             'Make sure the Python tracking program is running',
@@ -1102,7 +1073,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildErrorState() {
     return Center(
       child: Padding(
@@ -1110,16 +1081,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 80,
-              color: Theme.of(context).colorScheme.error,
-            ),
+            Icon(Icons.error_outline_rounded, size: 80, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 24),
-            Text(
-              'Connection Failed',
-              style: Theme.of(context).textTheme.displayMedium,
-            ),
+            Text('Connection Failed', style: Theme.of(context).textTheme.displayMedium),
             const SizedBox(height: 16),
             Text(
               'Unable to connect to the hand tracking system.\n\n'
@@ -1141,16 +1105,15 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildExerciseInterface(ExerciseData data) {
     return Stack(
       children: [
         Column(
           children: [
             // Warning message area (hand drift, alignment issues)
-            if (data.warningMessage != null)
-              _buildWarningBanner(data.warningMessage!),
-            
+            if (data.warningMessage != null) _buildWarningBanner(data.warningMessage!),
+
             // Main exercise area
             Expanded(
               child: SingleChildScrollView(
@@ -1159,38 +1122,37 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
                   children: [
                     // Current direction and target
                     _buildDirectionIndicator(data),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Angle visualizer (main focal point)
                     _buildAngleVisualizer(data),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Rep counter
                     _buildRepCounter(data),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Target angles for both directions
                     _buildTargetAnglesInfo(data),
                   ],
                 ),
               ),
             ),
-            
+
             // Control buttons
             _buildControlButtons(data),
           ],
         ),
-        
+
         // Level up overlay message
-        if (_showLevelUpMessage)
-          _buildLevelUpOverlay(data),
+        if (_showLevelUpMessage) _buildLevelUpOverlay(data),
       ],
     );
   }
-  
+
   Widget _buildWarningBanner(String message) {
     return Container(
       width: double.infinity,
@@ -1198,18 +1160,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.error.withOpacity(0.1),
         border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.error.withOpacity(0.3),
-            width: 2,
-          ),
+          bottom: BorderSide(color: Theme.of(context).colorScheme.error.withOpacity(0.3), width: 2),
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: Theme.of(context).colorScheme.error,
-          ),
+          Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1224,7 +1180,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildDirectionIndicator(ExerciseData data) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -1236,9 +1192,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            data.isForwardDirection
-                ? Icons.arrow_downward_rounded
-                : Icons.arrow_upward_rounded,
+            data.isForwardDirection ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
             color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(width: 12),
@@ -1253,14 +1207,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildAngleVisualizer(ExerciseData data) {
     // Calculate progress toward target (0-1)
     final progress = (data.currentAngle / data.currentTarget).clamp(0.0, 1.0);
-    
+
     // Determine if in target zone
     final isInTargetZone = (data.currentAngle - data.currentTarget).abs() <= 0.75;
-    
+
     return Card(
       elevation: 4,
       child: Container(
@@ -1279,31 +1233,28 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
                     : Theme.of(context).colorScheme.onSurface,
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             Text(
               'Current Angle',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Visual progress bar
             _buildProgressBar(progress, isInTargetZone),
-            
+
             const SizedBox(height: 16),
-            
+
             // Target angle indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '0° (Neutral)',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text('0° (Neutral)', style: Theme.of(context).textTheme.bodySmall),
                 Text(
                   'Target: ${data.currentTarget.toStringAsFixed(0)}°',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1318,7 +1269,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildProgressBar(double progress, bool isInTargetZone) {
     return SizedBox(
       height: 24,
@@ -1331,7 +1282,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          
+
           // Progress fill
           FractionallySizedBox(
             widthFactor: progress,
@@ -1353,7 +1304,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
               ),
             ),
           ),
-          
+
           // Target zone indicator (vertical line at target)
           Positioned(
             left: MediaQuery.of(context).size.width * 0.7 - 64, // Approximate target position
@@ -1370,20 +1321,17 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildRepCounter(ExerciseData data) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            Text(
-              'Repetitions',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            
+            Text('Repetitions', style: Theme.of(context).textTheme.titleLarge),
+
             const SizedBox(height: 16),
-            
+
             // Current reps (large display)
             Text(
               '${data.repetitionsCompleted}',
@@ -1393,7 +1341,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            
+
             // Last session comparison (if available)
             if (data.repetitionsLastSession > 0) ...[
               const SizedBox(height: 8),
@@ -1404,7 +1352,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
                 ),
               ),
             ],
-            
+
             // Progress toward level up
             if (data.repetitionsCompleted > 0) ...[
               const SizedBox(height: 24),
@@ -1415,33 +1363,31 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildLevelUpProgress(int currentReps) {
     const repsNeeded = 5; // From Python: NUM_REPS_TO_LEVEL_UP
     final progress = (currentReps % repsNeeded) / repsNeeded;
-    
+
     return Column(
       children: [
         LinearProgressIndicator(
           value: progress,
           backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-          valueColor: AlwaysStoppedAnimation<Color>(
-            Theme.of(context).colorScheme.secondary,
-          ),
+          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.secondary),
           minHeight: 8,
           borderRadius: BorderRadius.circular(4),
         ),
         const SizedBox(height: 8),
         Text(
           '${currentReps % repsNeeded}/$repsNeeded reps to level up',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.secondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.secondary),
         ),
       ],
     );
   }
-  
+
   Widget _buildTargetAnglesInfo(ExerciseData data) {
     return Card(
       child: Padding(
@@ -1449,10 +1395,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Target Angles',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Target Angles', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1478,7 +1421,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildAngleInfoChip({
     required String label,
     required double angle,
@@ -1523,7 +1466,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildControlButtons(ExerciseData data) {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -1544,40 +1487,31 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
           OutlinedButton.icon(
             onPressed: () => _backendService.sendCommand('toggle_direction'),
             icon: Icon(
-              data.isForwardDirection
-                  ? Icons.arrow_upward_rounded
-                  : Icons.arrow_downward_rounded,
+              data.isForwardDirection ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
             ),
             label: Text('Switch to ${data.isForwardDirection ? "Backward" : "Forward"}'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-            ),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Level up button
           ElevatedButton.icon(
             onPressed: () => _backendService.sendCommand('level_up'),
             icon: const Icon(Icons.trending_up_rounded),
             label: const Text('Level Up'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-            ),
+            style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // End session button
-          TextButton(
-            onPressed: () => _showEndSessionDialog(),
-            child: const Text('End Session'),
-          ),
+          TextButton(onPressed: () => _showEndSessionDialog(), child: const Text('End Session')),
         ],
       ),
     );
   }
-  
+
   Widget _buildLevelUpOverlay(ExerciseData data) {
     return Positioned.fill(
       child: FadeTransition(
@@ -1586,10 +1520,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
           color: Colors.black.withOpacity(0.7),
           child: Center(
             child: ScaleTransition(
-              scale: CurvedAnimation(
-                parent: _levelUpAnimationController,
-                curve: Curves.elasticOut,
-              ),
+              scale: CurvedAnimation(parent: _levelUpAnimationController, curve: Curves.elasticOut),
               child: Container(
                 margin: const EdgeInsets.all(48),
                 padding: const EdgeInsets.all(32),
@@ -1634,7 +1565,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
       ),
     );
   }
-  
+
   void _showEndSessionDialog() {
     showDialog(
       context: context,
@@ -1645,10 +1576,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
           'Your progress will be saved.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               _backendService.sendCommand('quit');
@@ -1670,14 +1598,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> with TickerProviderStat
 /// Small widget showing connection status with appropriate icon and color
 class _ConnectionStatusIndicator extends StatelessWidget {
   final ConnectionState state;
-  
+
   const _ConnectionStatusIndicator({required this.state});
 
   @override
   Widget build(BuildContext context) {
     IconData icon;
     Color color;
-    
+
     switch (state) {
       case ConnectionState.disconnected:
         icon = Icons.cloud_off_rounded;
@@ -1696,7 +1624,7 @@ class _ConnectionStatusIndicator extends StatelessWidget {
         color = Colors.red;
         break;
     }
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1705,10 +1633,7 @@ class _ConnectionStatusIndicator extends StatelessWidget {
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
       ],
     );
