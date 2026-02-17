@@ -1,19 +1,60 @@
 import serial
 import time
+import random
+import numpy as np 
+import os
+from supabase import create_client, Client
+from dotenv import load_dotenv
 
 # Configure the serial port
 ser = serial.Serial('COM3', 9600, timeout=0.1)
+UUID = " "
+id = " "
+
+# initalize the supabase
+load_dotenv()
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
 
 # replace these once baseline calibration exists
 base_IT = None
 base_MT = None
 
 # time values in seconds
-time_window = 10
-start = time.time()
-# empty arrays for index and middle figer values
+time_window = 5
+val = 0 # strength of the pinch 
+start = time.time() if val >= 100 else 0 # sets start value based on if strength is greater than 10
+
+# empty arrays for index and middle finger values 
 ind_vals = []
 mid_vals = []
+
+# sorts data in descending order
+ind_sort = np.sort(ind_vals)[::-1]
+mid_sort = np.sort(mid_vals)[::-1]
+
+# finds data in the 60th percentile
+ind60 = int(0.6 * len(ind_sort))
+mid60 = int(0.6 *len(mid_sort))
+
+# finds max values in the 60th percentile and calculates the average for index and middle finger
+top_ind = ind_sort[:ind60]
+top_mid = mid_sort[:mid60]
+
+max_ind = np.mean(top_ind)
+max_mid = np.mean(top_mid)
+
+if start !=0:
+    while time.time() - start < time_window:
+        ind_vals.append(random.randint(0,100))
+        mid_vals.append(random.randint(0,100))
+        time.sleep(0.2) # delay of 200 
+        print(f"Simulated index finger value: {ind_vals[-1]}")
+        print(f"Simulated middle finger value: {mid_vals[-1]}")
+else:
+     print("Insufficent Strength - Test Not Started")
+
+
 
 try:
     while time.time() - start < time_window:
@@ -44,17 +85,23 @@ try:
         time.sleep(0.1) # small delay between sensor reads
 except KeyboardInterrupt:
     print("Exiting.")
-finally:
-    if base_IT is None or base_MT is None:
+    
+# compares max values to baseline values
+base_IT = supabase.table("baseline").select("base_IT").eq("UUID", UUID).execute() 
+base_MT = supabase.table("baseline").select("base_MT").eq("UUID", UUID).execute() 
+IT_val = float(base_IT[0]["base_IT"])
+MT_val = float(base_MT[0]["base_MT"])
+
+if base_IT is None or base_MT is None:
         print("There are no baseline values.")
-    else:
+else:
         if len(ind_vals) > 0:
-            I_T = min(ind_vals)
+            I_T = max(ind_vals)
         else:
             I_T = 0
 
         if len(mid_vals) > 0:
-            M_T = min(mid_vals)
+            M_T = max(mid_vals)
         else:
             M_T = 0
 
@@ -75,4 +122,13 @@ finally:
         print("Ratio of Index-Thumb(r_IT):", round(r_IT, 3))
         print("Ratio of Middle-Thumb(r_MT):", round(r_MT, 3))
 
-    ser.close() # closes serial port when finished 
+        supabase.table("pinch").insert({
+            "UUID": UUID,
+            "Session ID": id,
+            "Max IT": I_T,
+            "Max MT": M_T,
+            "Ratio IT": r_IT,
+            "Ratio MT": r_MT,
+        }).execute()
+
+        ser.close() # closes serial port when finished 
