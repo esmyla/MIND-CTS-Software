@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Grip Session</title>
+</head>
+<body>
+    <button onclick="startSession()">Start Session</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function startSession() {
+            const res = await fetch("http://127.0.0.1:8000/start-session");
+            const data = await res.json();
+            document.getElementById("output").textContent =
+                JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
