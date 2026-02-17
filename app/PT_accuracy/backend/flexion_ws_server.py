@@ -3,9 +3,10 @@ import json
 import math
 import os
 import time
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 import cv2
 import mediapipe as mp
@@ -14,6 +15,9 @@ import websockets
 
 from supabase import create_client, Client
 
+# =============================================================================
+# SUPABASE CONFIG
+# =============================================================================
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
@@ -21,10 +25,9 @@ supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ===================================================================
+# =============================================================================
 # CONFIG
-# ===================================================================
-ANGLE_TOLERANCE = 0.75
+# =============================================================================
 RESET_THRESHOLD = 4.0
 ANGLE_INCREMENT = 5
 NUM_REPS_TO_LEVEL_UP = 5
@@ -34,8 +37,8 @@ MIN_ANGLE_TARGET_FORWARD = 25
 MAX_ANGLE_TARGET_BACKWARD = 50
 MIN_ANGLE_TARGET_BACKWARD = 10
 
-DEFAULT_HANDEDNESS = "Left"   # "Right" or "Left"
-DEFAULT_FORWARD_TILT = True   # True forward, False backward
+DEFAULT_HANDEDNESS = "Left"     # "Left" or "Right"
+DEFAULT_FORWARD_TILT = True     # True forward, False backward
 
 DEFAULT_STATE = {
     "angle_target_forward": 30,
@@ -43,10 +46,9 @@ DEFAULT_STATE = {
     "reps_last_session": 0,
 }
 
-# ===================================================================
+# =============================================================================
 # SUPABASE HELPERS
-# ===================================================================
-
+# =============================================================================
 def get_current_session(user_id: str) -> int:
     if not supabase:
         return 0
@@ -64,6 +66,7 @@ def get_current_session(user_id: str) -> int:
         return 0
     except Exception:
         return 0
+
 
 def load_state(user_id: str) -> Dict[str, Any]:
     if not supabase:
@@ -89,6 +92,7 @@ def load_state(user_id: str) -> Dict[str, Any]:
         return {**DEFAULT_STATE, "session": 0}
     except Exception:
         return {**DEFAULT_STATE, "session": 0}
+
 
 def save_session(
     user_id: str,
@@ -116,10 +120,33 @@ def save_session(
     except Exception as e:
         print(f"✗ Error saving session: {e}")
 
-# ===================================================================
-# TRACKING STATE
-# ===================================================================
 
+# =============================================================================
+# ANGLE + SIGN HELPERS
+# =============================================================================
+def normalize_180(angle_0_360: float) -> float:
+    """Convert angle from 0..360 into -180..180."""
+    return angle_0_360 if angle_0_360 <= 180 else angle_0_360 - 360
+
+
+def expected_sign(handedness: str, forward_tilt: bool) -> int:
+    """
+    Corrected sign rules:
+
+    Left  + forward  => +1  (angle should be positive)
+    Left  + backward => -1  (angle should be negative)
+    Right + forward  => -1  (angle should be negative)
+    Right + backward => +1  (angle should be positive)
+    """
+    if handedness == "Left":
+        return 1 if forward_tilt else -1
+    else:  # Right
+        return -1 if forward_tilt else 1
+
+
+# =============================================================================
+# TRACKER STATE
+# =============================================================================
 @dataclass
 class TrackerState:
     user_id: str = "demo-user"
@@ -132,99 +159,117 @@ class TrackerState:
 
     reps: int = 0
     armed: bool = True
-    baseline_id0: Optional[tuple] = None
+    baseline_id0: Optional[Tuple[int, int]] = None
 
     last_level_up: bool = False
     last_warning: Optional[str] = None
 
+    # UI always gets the true signed angle (-180..180)
+    last_angle_signed: float = 0.0
+    last_found_hand: bool = False
+
+    # Optional debug (effective = sign * signed)
+    last_angle_effective: float = 0.0
+
+    # Monotonic timestamp for MediaPipe VIDEO mode (strictly increasing!)
+    video_ts_ms: int = 0
+
+    # FPS estimation
     last_frame_time: float = field(default_factory=time.time)
     fps: float = 0.0
-
-    def current_target(self) -> float:
-        return self.angle_target_forward if self.forward_tilt else self.angle_target_backward
 
     def direction_str(self) -> str:
         return "forward" if self.forward_tilt else "backward"
 
-# ===================================================================
-# MEDIAPIPE TASKS
-# ===================================================================
 
+# =============================================================================
+# MEDIAPIPE TASKS (VIDEO MODE)
+# =============================================================================
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 MODEL_PATH = os.getenv("HAND_MODEL_PATH", os.path.join("models", "hand_landmarker.task"))
 
-base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
-options = vision.HandLandmarkerOptions(
-    base_options=base_options,
-    num_hands=1,
-)
-hand_landmarker = vision.HandLandmarker.create_from_options(options)
 
-def compute_angles_from_frame(bgr_img: np.ndarray) -> Dict[str, Any]:
-    img = cv2.flip(bgr_img, 1)
+def make_hand_landmarker() -> "vision.HandLandmarker":
+    """Create a HandLandmarker configured for streaming video (stable)."""
+    base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.VIDEO,
+        num_hands=1,
+        min_hand_detection_confidence=0.4,
+        min_hand_presence_confidence=0.4,
+        min_tracking_confidence=0.25,
+    )
+    return vision.HandLandmarker.create_from_options(options)
+
+
+def compute_angles_from_frame(
+    bgr_img: np.ndarray,
+    landmarker: "vision.HandLandmarker",
+    timestamp_ms: int
+) -> Dict[str, Any]:
+    """
+    Returns raw angles in 0..360 plus key pixel points for drift logic.
+    Uses VIDEO mode: detect_for_video(mp_image, timestamp_ms).
+    """
+    img = cv2.flip(bgr_img, 1)  # mirror like your original UX
     h, w, _ = img.shape
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-    result = hand_landmarker.detect(mp_image)
+    result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
     if not result.hand_landmarks:
-        return {
-            "angle_deg": None,
-            "angle_deg_2": None,
-            "id0_xy": None,
-            "id9_xy": None,
-            "id12_xy": None,
-            "found_hand": False,
-        }
+        return {"found_hand": False}
 
     lm = result.hand_landmarks[0]
 
     def px(i: int):
         return (int(lm[i].x * w), int(lm[i].y * h))
 
-    id0_xy = px(0)
-    id9_xy = px(9)
-    id12_xy = px(12)
+    id0_xy = px(0)   # wrist
+    id9_xy = px(9)   # middle MCP
+    id12_xy = px(12) # middle tip
 
     dx = id12_xy[0] - id0_xy[0]
     dy = id12_xy[1] - id0_xy[1]
-    angle_rad = math.atan2(dx, dy)
-    angle_deg = 180 - math.degrees(angle_rad)
+    angle_deg = 180 - math.degrees(math.atan2(dx, dy))  # 0..360
 
     dx2 = id9_xy[0] - id0_xy[0]
     dy2 = id9_xy[1] - id0_xy[1]
-    angle_rad_2 = math.atan2(dx2, dy2)
-    angle_deg_2 = 180 - math.degrees(angle_rad_2)
+    angle_deg_2 = 180 - math.degrees(math.atan2(dx2, dy2))  # 0..360
 
     return {
-        "angle_deg": angle_deg,
-        "angle_deg_2": angle_deg_2,
-        "id0_xy": id0_xy,
-        "id9_xy": id9_xy,
-        "id12_xy": id12_xy,
         "found_hand": True,
+        "angle_deg": float(angle_deg),
+        "angle_deg_2": float(angle_deg_2),
+        "id0_xy": id0_xy,
+        "id12_xy": id12_xy,
     }
 
-# ===================================================================
-# REP LOGIC
-# ===================================================================
 
+# =============================================================================
+# REP LOGIC (SIGNED UI ANGLE + EFFECTIVE REP ANGLE)
+# =============================================================================
 def update_reps_and_warnings(
     state: TrackerState,
-    angle_deg: float,
-    angle_deg_2: float,
-    id0_xy: Optional[tuple],
-    id12_xy: Optional[tuple],
+    signed_angle: float,
+    signed_angle_2: float,
+    effective_angle: float,
+    effective_angle_2: float,
+    id0_xy: Optional[Tuple[int, int]],
+    id12_xy: Optional[Tuple[int, int]],
 ) -> None:
     state.last_level_up = False
     state.last_warning = None
 
-    if abs(angle_deg_2 - angle_deg) > 20 and abs(angle_deg_2 - angle_deg) < 300:
+    # Alignment warning (use signed domain for consistency)
+    if abs(signed_angle_2 - signed_angle) > 20:
         state.last_warning = "Keep your hand straight."
 
+    # Drift detection
     if id0_xy is not None and id12_xy is not None:
         if state.baseline_id0 is None:
             state.baseline_id0 = id0_xy
@@ -239,17 +284,14 @@ def update_reps_and_warnings(
                 state.armed = False
                 state.last_warning = "Try not to move your arm, just your wrist."
 
-    current_angle_target = state.current_target()
-    handed = state.handedness
-    forward = state.forward_tilt
-    straight_ok = abs(angle_deg_2 - angle_deg) < 10
+    # Straightness check should match rep domain (effective)
+    straight_ok = abs(effective_angle_2 - effective_angle) < 10
 
-    hit_target = (
-        (forward and handed == "Right" and angle_deg < (360 - current_angle_target) and angle_deg > 180)
-        or ((not forward) and handed == "Right" and angle_deg > current_angle_target and angle_deg < 180)
-        or (forward and handed == "Left" and angle_deg > current_angle_target and angle_deg < 180)
-        or ((not forward) and handed == "Left" and angle_deg < (360 - current_angle_target) and angle_deg > 180)
-    )
+    # Target magnitude: forward uses forward target, backward uses backward target
+    target = state.angle_target_forward if state.forward_tilt else state.angle_target_backward
+
+    # Rep trigger: effective must exceed target. Wrong sign => effective negative => won't pass.
+    hit_target = effective_angle >= target
 
     if state.armed and straight_ok and hit_target:
         state.armed = False
@@ -264,29 +306,28 @@ def update_reps_and_warnings(
                 level_up=True,
             )
 
+            # Toggle direction and level up for next direction
             state.forward_tilt = not state.forward_tilt
+
             if state.forward_tilt:
-                state.angle_target_forward = min(
-                    state.angle_target_forward + ANGLE_INCREMENT, MAX_ANGLE_TARGET_FORWARD
-                )
+                state.angle_target_forward = min(state.angle_target_forward + ANGLE_INCREMENT, MAX_ANGLE_TARGET_FORWARD)
             else:
-                state.angle_target_backward = min(
-                    state.angle_target_backward + ANGLE_INCREMENT, MAX_ANGLE_TARGET_BACKWARD
-                )
+                state.angle_target_backward = min(state.angle_target_backward + ANGLE_INCREMENT, MAX_ANGLE_TARGET_BACKWARD)
 
             state.reps = 0
             state.last_level_up = True
 
-    if (not state.armed) and (angle_deg <= RESET_THRESHOLD or angle_deg >= (360 - RESET_THRESHOLD)):
+    # Rearm near neutral based on signed angle around 0
+    if (not state.armed) and (abs(signed_angle) <= RESET_THRESHOLD):
         state.armed = True
         if id0_xy is not None:
             state.baseline_id0 = id0_xy
 
-# ===================================================================
-# SERVER
-# ===================================================================
 
-async def send_update(state: TrackerState, conn, angle: Optional[float]) -> None:
+# =============================================================================
+# SERVER OUTPUT
+# =============================================================================
+async def send_update(state: TrackerState, conn) -> None:
     now = time.time()
     dt = now - state.last_frame_time
     if dt > 0:
@@ -297,29 +338,44 @@ async def send_update(state: TrackerState, conn, angle: Optional[float]) -> None
     payload = {
         "type": "exercise_update",
         "timestamp": now,
-        "angle": float(angle) if angle is not None else 0.0,
+
+        # ✅ True signed angle (UI: -180..180 always)
+        "angle": float(state.last_angle_signed),
+        "found_hand": bool(state.last_found_hand),
+
+        # Targets remain magnitudes (UI can sign them if desired)
         "target_forward": float(state.angle_target_forward),
         "target_backward": float(state.angle_target_backward),
+
         "reps": int(state.reps),
         "reps_last": int(state.reps_last_session),
+
         "direction": state.direction_str(),
         "handedness": state.handedness,
         "armed": bool(state.armed),
+
         "warning": state.last_warning,
         "level_up": bool(state.last_level_up),
         "fps": float(state.fps),
+
+        # optional debug visibility
+        "expected_sign": expected_sign(state.handedness, state.forward_tilt),
+        "effective_angle": float(state.last_angle_effective),
     }
     await conn.send(json.dumps(payload))
 
+
+# =============================================================================
+# CONNECTION HANDLER
+# =============================================================================
 async def handler(conn):
-    # Newer websockets exposes request metadata under conn.request (incl. path). [2](https://stackoverflow.com/questions/79234060/cannot-access-path-in-websockets-serve-handler)
     raw_path = getattr(getattr(conn, "request", None), "path", "") or ""
     query = raw_path.split("?", 1)
 
     user_id = "demo-user"
     if len(query) == 2:
         params = query[1]
-        for part in params.split("&"):
+        for part in params.split("&"):  # ✅ correct separator
             if part.startswith("user_id="):
                 user_id = part.split("=", 1)[1].strip() or "demo-user"
 
@@ -332,33 +388,66 @@ async def handler(conn):
 
     print(f"[server] client connected user_id={user_id}")
 
+    landmarker = make_hand_landmarker()
+
     try:
         async for message in conn:
+            # -----------------------
+            # Binary JPEG frames
+            # -----------------------
             if isinstance(message, (bytes, bytearray)):
                 jpg = np.frombuffer(message, dtype=np.uint8)
                 frame = cv2.imdecode(jpg, cv2.IMREAD_COLOR)
+
                 if frame is None:
+                    state.last_found_hand = False
                     state.last_warning = "Bad frame received."
-                    await send_update(state, conn, angle=None)
+                    await send_update(state, conn)
                     continue
 
-                info = compute_angles_from_frame(frame)
-                angle_deg = info["angle_deg"]
-                angle_deg_2 = info["angle_deg_2"]
+                # ✅ Strictly increasing timestamp required by detect_for_video
+                ts_now = int(time.time() * 1000)
+                ts_ms = ts_now if ts_now > state.video_ts_ms else state.video_ts_ms + 1
+                state.video_ts_ms = ts_ms
 
-                if angle_deg is not None and angle_deg_2 is not None:
-                    update_reps_and_warnings(
-                        state,
-                        angle_deg=angle_deg,
-                        angle_deg_2=angle_deg_2,
-                        id0_xy=info["id0_xy"],
-                        id12_xy=info["id12_xy"],
-                    )
-                    await send_update(state, conn, angle=angle_deg)
-                else:
+                info = compute_angles_from_frame(frame, landmarker, ts_ms)
+
+                if not info.get("found_hand", False):
+                    state.last_found_hand = False
                     state.last_warning = "No hand detected."
-                    await send_update(state, conn, angle=None)
+                    await send_update(state, conn)
+                    continue
 
+                raw_a1 = float(info["angle_deg"])
+                raw_a2 = float(info["angle_deg_2"])
+
+                signed_a1 = normalize_180(raw_a1)
+                signed_a2 = normalize_180(raw_a2)
+
+                sign = expected_sign(state.handedness, state.forward_tilt)
+                effective_a1 = sign * signed_a1
+                effective_a2 = sign * signed_a2
+
+                # store last values
+                state.last_angle_signed = signed_a1
+                state.last_angle_effective = effective_a1
+                state.last_found_hand = True
+
+                update_reps_and_warnings(
+                    state=state,
+                    signed_angle=signed_a1,
+                    signed_angle_2=signed_a2,
+                    effective_angle=effective_a1,
+                    effective_angle_2=effective_a2,
+                    id0_xy=info.get("id0_xy"),
+                    id12_xy=info.get("id12_xy"),
+                )
+
+                await send_update(state, conn)
+
+            # -----------------------
+            # JSON text commands
+            # -----------------------
             else:
                 try:
                     data = json.loads(message)
@@ -366,6 +455,7 @@ async def handler(conn):
                     continue
 
                 cmd = data.get("command")
+
                 if cmd == "toggle_direction":
                     state.forward_tilt = not state.forward_tilt
 
@@ -401,7 +491,12 @@ async def handler(conn):
                 elif cmd == "quit":
                     break
 
-                await send_update(state, conn, angle=None)
+                # Always send back full state + last angle
+                await send_update(state, conn)
+
+    except Exception as e:
+        print("[server] handler exception:", repr(e))
+        traceback.print_exc()
 
     finally:
         print(f"[server] client disconnected user_id={user_id}, reps={state.reps}")
@@ -412,15 +507,30 @@ async def handler(conn):
             state.reps,
             level_up=False,
         )
+        try:
+            landmarker.close()
+        except Exception:
+            pass
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 async def main():
     host = os.getenv("WS_HOST", "0.0.0.0")
     port = int(os.getenv("WS_PORT", "8765"))
     print(f"Starting server on {host}:{port}")
 
-    # websockets.serve(handler, ...) is the modern entrypoint; avoid legacy protocol types. [1](https://deepwiki.com/python-websockets/websockets/11-migration-guide)
-    async with websockets.serve(handler, host, port, max_size=4 * 1024 * 1024):
+    async with websockets.serve(
+        handler,
+        host,
+        port,
+        max_size=4 * 1024 * 1024,
+        ping_interval=20,
+        ping_timeout=20,
+    ):
         await asyncio.Future()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
