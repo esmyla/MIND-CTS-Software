@@ -81,7 +81,7 @@ float readTemperatureC() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(1000);
 
   // BLEDevice::init("XIAO_ESP32C6");
@@ -134,7 +134,6 @@ void setup() {
   pinMode(HEATER_PIN, OUTPUT);
   digitalWrite(HEATER_PIN, LOW); // Heater OFF on boot
 
-  Serial.begin(9600);
   delay(1000);
 
   prevTime = millis();
