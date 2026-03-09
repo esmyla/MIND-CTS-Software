@@ -149,12 +149,11 @@ void loop() {
     // }
 
   //--------------------------------
-  //Hear Rate
+  //Heart Rate
   //--------------------------------
   long irValue = particleSensor.getIR();
 
-  if (checkForBeat(irValue) == true)
-  {
+  if (checkForBeat(irValue)){
     long delta = millis() - lastBeat;
     lastBeat = millis();
 
@@ -171,15 +170,15 @@ void loop() {
         beatAvg += rates[x];
       beatAvg /= RATE_SIZE;
     }
-  
+  }
   // -------------------------------
   // TMP36 – Temperature
   // -------------------------------
   int tempADC = analogRead(TEMP_PIN);
   // float voltage = tempADC * (5.0 / 1023.0);
   // float temperatureC = (voltage - TMP36_VOLTAGE_OFFSET) * TMP36_SCALE;
-  float temperatureC = ((tempADC * 5000 / 1024.0) - 500) / 10.0;
-  float temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
+  float voltage = sensorValue * (3.3 / 4095.0);
+  float tempC = (voltage - 0.5) * 100.0;
 
   // -------------------------------
   // FSR 402 – Force Sensor
