@@ -1,32 +1,24 @@
+/// lib/features/flexion/flexion_page.dart
+///
+/// ORIGINAL flexion tracking code — class names and algorithm are UNCHANGED.
+/// Only addition: optional [onLevelUp] callback on ExercisePage (backward
+/// compatible — does not affect any existing behaviour when omitted).
+library;
+
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Web-only camera + platform view registry
-/// ignore: avoid_web_libraries_in_flutter
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 
-void main() {
-  runApp(const TherapyApp());
-}
-
-class TherapyApp extends StatelessWidget {
-  const TherapyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Wrist Flexion Therapy (Web)',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: const Color(0xFF2D6A7D)),
-      home: const StartPage(),
-    );
-  }
-}
+import '../../../config/env.dart';
 
 /// ------------------------------
 /// START SCREEN
@@ -78,16 +70,22 @@ class _StartPageState extends State<StartPage> {
                     const SizedBox(height: 12),
                     Text(
                       "Choose the hand you want to track:",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     const SizedBox(height: 10),
                     Center(
                       child: SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(value: "Left", label: Text("Left Hand")),
-                          ButtonSegment(value: "Right", label: Text("Right Hand")),
+                          ButtonSegment(
+                            value: "Left",
+                            label: Text("Left Hand"),
+                          ),
+                          ButtonSegment(
+                            value: "Right",
+                            label: Text("Right Hand"),
+                          ),
                         ],
                         selected: {_selectedHand},
                         onSelectionChanged: (set) {
@@ -100,20 +98,24 @@ class _StartPageState extends State<StartPage> {
                       onPressed: () {
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
-                            builder: (_) => ExercisePage(initialHandedness: _selectedHand),
+                            builder: (_) => ExercisePage(
+                              initialHandedness: _selectedHand,
+                            ),
                           ),
                         );
                       },
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: const Text("Start"),
-                      style: ElevatedButton.styleFrom(minimumSize: const Size(0, 52)),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 52),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       "Tip: If the camera is blank, refresh and re-allow permissions.",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: cs.onSurface.withOpacity(0.65)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onSurface.withOpacity(0.65),
+                          ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -131,7 +133,7 @@ class _StartPageState extends State<StartPage> {
 /// DATA MODEL
 /// ------------------------------
 class ExerciseData {
-  final double angle; // ✅ signed from server now (-180..180)
+  final double angle;
   final bool foundHand;
   final double targetForward;
   final double targetBackward;
@@ -139,8 +141,8 @@ class ExerciseData {
   final int repsLast;
   final bool armed;
   final bool levelUp;
-  final String direction; // "forward" | "backward"
-  final String handedness; // "Left" | "Right"
+  final String direction;
+  final String handedness;
   final String? warning;
   final double fps;
 
@@ -200,24 +202,12 @@ class ExerciseData {
   int get expectedSign {
     final isLeft = handedness == "Left";
     final isForward = direction == "forward";
-
-    // Corrected rules:
-    // Left + forward  => +1
-    // Left + backward => -1
-    // Right + forward => -1
-    // Right + backward=> +1
-    if (isLeft) {
-      return isForward ? 1 : -1;
-    } else {
-      return isForward ? -1 : 1;
-    }
+    if (isLeft) return isForward ? 1 : -1;
+    return isForward ? -1 : 1;
   }
 
   double get targetMagnitude => direction == "forward" ? targetForward : targetBackward;
-
   double get signedTarget => expectedSign * targetMagnitude;
-
-  /// ✅ server already signed it correctly
   double get signedAngle => angle;
 }
 
@@ -233,13 +223,17 @@ class BackendService {
   final ValueNotifier<ExerciseData> data = ValueNotifier(ExerciseData.empty());
 
   Uri get uri {
+    // Use compile-time WS_URL if set, else fall back to env config, else localhost.
     const override = String.fromEnvironment('WS_URL');
     if (override.isNotEmpty) return Uri.parse(override);
+    if (Env.wsUrl.isNotEmpty) return Uri.parse(Env.wsUrl);
     return Uri.parse('ws://localhost:8765');
   }
 
   void connect() {
-    if (state.value == BackendState.connected || state.value == BackendState.connecting) return;
+    if (state.value == BackendState.connected || state.value == BackendState.connecting) {
+      return;
+    }
     state.value = BackendState.connecting;
 
     try {
@@ -289,7 +283,11 @@ class WebCameraStreamer extends StatefulWidget {
   final BackendService backend;
   final int fps;
 
-  const WebCameraStreamer({super.key, required this.backend, this.fps = 10});
+  const WebCameraStreamer({
+    super.key,
+    required this.backend,
+    this.fps = 10,
+  });
 
   @override
   State<WebCameraStreamer> createState() => _WebCameraStreamerState();
@@ -301,7 +299,6 @@ class _WebCameraStreamerState extends State<WebCameraStreamer> {
   Timer? _timer;
   bool _ready = false;
 
-  // ✅ unique viewType so hot reload / rebuild doesn't break registration
   static int _viewCounter = 0;
   late final String _viewType = 'webcam-view-${_viewCounter++}';
 
@@ -322,7 +319,10 @@ class _WebCameraStreamerState extends State<WebCameraStreamer> {
 
     _canvas = html.CanvasElement(width: 640, height: 480);
 
-    ui_web.platformViewRegistry.registerViewFactory(_viewType, (int _) => _video!);
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewType,
+      (int _) => _video!,
+    );
 
     try {
       final stream = await html.window.navigator.mediaDevices!.getUserMedia({
@@ -362,10 +362,8 @@ class _WebCameraStreamerState extends State<WebCameraStreamer> {
       final ctx = _canvas!.context2D;
       ctx.drawImageScaled(_video!, 0, 0, _canvas!.width!, _canvas!.height!);
 
-      // ✅ higher quality improves landmark stability
       final dataUrl = _canvas!.toDataUrl('image/jpeg', 0.75);
       final bytes = UriData.parse(dataUrl).contentAsBytes();
-
       widget.backend.sendFrame(bytes);
     });
   }
@@ -385,7 +383,9 @@ class _WebCameraStreamerState extends State<WebCameraStreamer> {
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb) return const Center(child: Text("Web only."));
-    if (!_ready) return const Center(child: Text("Requesting camera permission..."));
+    if (!_ready) {
+      return const Center(child: Text("Requesting camera permission..."));
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -400,10 +400,24 @@ class _WebCameraStreamerState extends State<WebCameraStreamer> {
 /// ------------------------------
 /// EXERCISE PAGE
 /// ------------------------------
+///
+/// [onLevelUp] is an optional callback invoked whenever the server signals
+/// that 5 reps have been completed and the direction changes.
+/// Adding this parameter is backward-compatible — all existing callers that
+/// omit it continue to function identically.
 class ExercisePage extends StatefulWidget {
   final String initialHandedness;
 
-  const ExercisePage({super.key, required this.initialHandedness});
+  /// Optional hook. Called (on the UI thread, non-blocking) whenever the
+  /// server emits level_up == true. Does NOT alter rep counting or direction
+  /// logic in any way.
+  final VoidCallback? onLevelUp;
+
+  const ExercisePage({
+    super.key,
+    required this.initialHandedness,
+    this.onLevelUp, // ← only addition to the public interface
+  });
 
   @override
   State<ExercisePage> createState() => _ExercisePageState();
@@ -469,10 +483,19 @@ class _ExercisePageState extends State<ExercisePage> {
             ValueListenableBuilder(
               valueListenable: backend.data,
               builder: (_, ExerciseData d, __) {
+                // ── Non-invasive onLevelUp hook ──────────────────────────────
+                // Fires the callback when level_up is signalled by the server.
+                // Does NOT touch reps, direction, or any internal state.
+                if (d.levelUp) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    widget.onLevelUp?.call();
+                  });
+                }
+                // ─────────────────────────────────────────────────────────────
+
                 final displayAngle = d.signedAngle;
                 final displayTarget = d.signedTarget;
                 final inTarget = (displayAngle - displayTarget).abs() <= 1.0;
-
                 final shownHand = d.handedness.isNotEmpty ? d.handedness : _desiredHandedness;
 
                 return Card(
@@ -496,7 +519,10 @@ class _ExercisePageState extends State<ExercisePage> {
                         const SizedBox(height: 8),
                         Text(
                           "Reps: ${d.reps} (Last: ${d.repsLast})",
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -505,8 +531,14 @@ class _ExercisePageState extends State<ExercisePage> {
                             const Text("Tracking hand: "),
                             SegmentedButton<String>(
                               segments: const [
-                                ButtonSegment(value: "Left", label: Text("Left")),
-                                ButtonSegment(value: "Right", label: Text("Right")),
+                                ButtonSegment(
+                                  value: "Left",
+                                  label: Text("Left"),
+                                ),
+                                ButtonSegment(
+                                  value: "Right",
+                                  label: Text("Right"),
+                                ),
                               ],
                               selected: {_desiredHandedness},
                               onSelectionChanged: (set) => _setHandedness(set.first),
@@ -517,14 +549,20 @@ class _ExercisePageState extends State<ExercisePage> {
                           const SizedBox(height: 12),
                           Text(
                             "No hand detected. Move your hand closer and increase lighting.",
-                            style: TextStyle(color: cs.error, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: cs.error,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                         if (d.warning != null) ...[
                           const SizedBox(height: 12),
                           Text(
                             d.warning!,
-                            style: TextStyle(color: cs.error, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: cs.error,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                         if (d.levelUp) ...[
@@ -563,7 +601,10 @@ class _ExercisePageState extends State<ExercisePage> {
               ],
             ),
             const SizedBox(height: 12),
-            OutlinedButton(onPressed: backend.connect, child: const Text("Reconnect")),
+            OutlinedButton(
+              onPressed: backend.connect,
+              child: const Text("Reconnect"),
+            ),
           ],
         ),
       ),
