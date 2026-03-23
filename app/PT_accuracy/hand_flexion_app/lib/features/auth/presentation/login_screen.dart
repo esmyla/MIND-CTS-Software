@@ -50,7 +50,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _loading = false);
 
     if (result is AuthFailure) {
-      setState(() => _errorMsg = result.message);
+      final failure = result;
+      setState(() => _errorMsg = failure.message);
     }
   }
 
@@ -143,8 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ButtonSegment(value: true, label: Text('Create Account')),
                     ],
                     selected: {_isSignUp},
-                    onSelectionChanged: (s) =>
-                        setState(() => _isSignUp = s.first),
+                    onSelectionChanged: (s) => setState(() => _isSignUp = s.first),
                   ),
 
                   const SizedBox(height: 24),
