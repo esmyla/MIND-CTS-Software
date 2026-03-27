@@ -15,17 +15,23 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+
     final session = ref.watch(sessionProvider);
+    final isGuest = session.status == SessionStatus.guest;
+
     final streakAsync = ref.watch(streakProvider);
+    final sessionsAsync = ref.watch(sessionHistoryProvider);
+
+    // Only read mock data if we actually need it (guest mode)
+    final chartData = isGuest ? ref.watch(mockFlexionChartProvider) : const <FlexionDataPoint>[];
     final gripImprovement = ref.watch(gripImprovementProvider);
-    final chartData = ref.watch(mockFlexionChartProvider);
 
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
-          if (session.status == SessionStatus.guest)
+          if (isGuest)
             TextButton.icon(
               onPressed: () => ref.read(sessionProvider.notifier).signOut(),
               icon: const Icon(Icons.login_rounded, size: 18),
@@ -40,31 +46,52 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(streakProvider),
+        onRefresh: () async {
+          ref.invalidate(streakProvider);
+          ref.invalidate(sessionHistoryProvider); // NEW: refresh calendar data too
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // Guest mode CTA
-            if (session.status == SessionStatus.guest) ...[
+            if (isGuest) ...[
               _GuestBanner(),
               const SizedBox(height: 16),
             ],
 
             // ----------------------------------------------------------------
-            // Top row: Streak + Grip cards
+            // Top row: Streak (or Calendar) + Grip cards
             // ----------------------------------------------------------------
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: streakAsync.when(
-                    data: (streak) => _StatCard(
-                      icon: Icons.local_fire_department_rounded,
-                      iconColor: Colors.orange,
-                      label: 'Day Streak',
-                      value: '$streak',
-                      subtitle: streak == 1 ? 'Great start!' : 'Keep it going!',
-                    ),
+                    data: (streak) {
+                      // If streak is 0 or 1, show calendar for current month.
+                      if (streak <= 1) {
+                        return sessionsAsync.when(
+                          data: (allDates) => _MonthlySessionCalendar(completedDays: allDates),
+                          loading: () => const _StatCardSkeleton(),
+                          error: (_, __) => const _StatCard(
+                            icon: Icons.calendar_month_rounded,
+                            iconColor: Colors.blueGrey,
+                            label: 'Sessions',
+                            value: '—',
+                            subtitle: 'History unavailable',
+                          ),
+                        );
+                      }
+
+                      // Otherwise show regular streak card
+                      return _StatCard(
+                        icon: Icons.local_fire_department_rounded,
+                        iconColor: Colors.orange,
+                        label: 'Day Streak',
+                        value: '$streak',
+                        subtitle: streak == 1 ? 'Great start!' : 'Keep it going!',
+                      );
+                    },
                     loading: () => const _StatCardSkeleton(),
                     error: (_, __) => const _StatCard(
                       icon: Icons.local_fire_department_rounded,
@@ -93,8 +120,29 @@ class HomeScreen extends ConsumerWidget {
 
             // ----------------------------------------------------------------
             // Flexion growth chart
+            //   - Only show mock chart in guest mode.
+            //   - Hide mock chart for signed-in users (show a subtle placeholder).
             // ----------------------------------------------------------------
-            _FlexionChart(data: chartData),
+            if (isGuest)
+              _FlexionChart(data: chartData, isMock: true)
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.show_chart_rounded, color: cs.outline),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your wrist flexion chart will appear here once data is available.',
+                          style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(0.7)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 20),
 
@@ -125,9 +173,8 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Warm up your wrist for 2 minutes before starting '
-                      'exercises. Slow, controlled flexion protects tendons '
-                      'and improves long-term range of motion.',
+                      'Warm up your wrist for 2 minutes before starting exercises. '
+                      'Slow, controlled flexion protects tendons and improves long-term range of motion.',
                       style: tt.bodySmall?.copyWith(
                         color: cs.onSurface.withOpacity(0.75),
                         height: 1.5,
@@ -145,7 +192,7 @@ class HomeScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Stat card widget
+// Stat card widget (unchanged)
 // ---------------------------------------------------------------------------
 
 class _StatCard extends StatelessWidget {
@@ -235,13 +282,226 @@ class _StatCardSkeleton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Flexion growth line chart
+// Monthly Session Calendar (simple, dependency-free)
+// ---------------------------------------------------------------------------
+
+class _MonthlySessionCalendar extends StatelessWidget {
+  final Set<DateTime> completedDays;
+  final DateTime month;
+
+  _MonthlySessionCalendar({
+    required Set<DateTime> completedDays,
+    DateTime? month,
+  })  : completedDays = completedDays.map(_dateOnly).toSet(),
+        month = DateTime(
+          (month ?? DateTime.now()).year,
+          (month ?? DateTime.now()).month,
+        );
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+  static bool _sameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    final firstDay = DateTime(month.year, month.month, 1);
+    final nextMonth = DateTime(month.year, month.month + 1, 1);
+    final daysInMonth = nextMonth.subtract(const Duration(days: 1)).day;
+
+    // Sunday-first calendar: leading blanks = weekday % 7 (Mon=1..Sun=7)
+    final leadingBlanks = firstDay.weekday % 7;
+    final totalCells = leadingBlanks + daysInMonth;
+    final rows = (totalCells / 7.0).ceil();
+    final cells = rows * 7;
+
+    // Build a fast lookup set for completed days in this month
+    final completedThisMonth = <int>{};
+    for (var d in completedDays) {
+      if (d.year == month.year && d.month == month.month) {
+        completedThisMonth.add(d.day);
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.calendar_month_rounded, color: cs.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  '${_monthName(month.month)} ${month.year}',
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                if (completedThisMonth.isNotEmpty)
+                  Text(
+                    '${completedThisMonth.length} day${completedThisMonth.length == 1 ? '' : 's'}',
+                    style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Weekday labels (Sun..Sat)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _DowLabel('S'),
+                _DowLabel('M'),
+                _DowLabel('T'),
+                _DowLabel('W'),
+                _DowLabel('T'),
+                _DowLabel('F'),
+                _DowLabel('S'),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Calendar grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+              ),
+              itemCount: cells,
+              itemBuilder: (_, index) {
+                final dayNum = index - leadingBlanks + 1;
+                if (dayNum < 1 || dayNum > daysInMonth) {
+                  return const SizedBox.shrink();
+                }
+                final isDone = completedThisMonth.contains(dayNum);
+                return _DayCell(
+                  day: dayNum,
+                  isDone: isDone,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // Legend
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _Dot(color: cs.primary),
+                const SizedBox(width: 6),
+                Text('Completed', style: tt.labelSmall),
+                const SizedBox(width: 12),
+                _Dot(color: cs.outlineVariant),
+                const SizedBox(width: 6),
+                Text('No session', style: tt.labelSmall),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _monthName(int m) {
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return names[m - 1];
+  }
+}
+
+class _DowLabel extends StatelessWidget {
+  final String text;
+  const _DowLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      text,
+      style: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: cs.onSurface.withOpacity(0.6),
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  final int day;
+  final bool isDone;
+
+  const _DayCell({required this.day, required this.isDone});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    final bg = isDone ? cs.primary.withOpacity(0.12) : cs.surfaceContainerHighest.withOpacity(0.6);
+    final border = isDone ? cs.primary : cs.outlineVariant;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: border, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '$day',
+        style: tt.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: isDone ? cs.primary : cs.onSurface.withOpacity(0.7),
+        ),
+      ),
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  final Color color;
+  const _Dot({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 12,
+      height: 6,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Flexion growth line chart (adds isMock flag to control "Mock data" tag)
 // ---------------------------------------------------------------------------
 
 class _FlexionChart extends StatelessWidget {
   final List<FlexionDataPoint> data;
+  final bool isMock; // NEW
 
-  const _FlexionChart({required this.data});
+  const _FlexionChart({required this.data, this.isMock = false});
 
   @override
   Widget build(BuildContext context) {
@@ -269,22 +529,20 @@ class _FlexionChart extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Mock data',
-                    style: tt.labelSmall?.copyWith(
-                      color: cs.onPrimaryContainer,
+                if (isMock)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Mock data',
+                      style: tt.labelSmall?.copyWith(
+                        color: cs.onPrimaryContainer,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
 
@@ -448,7 +706,7 @@ class _LegendDot extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Guest mode banner
+// Guest mode banner (unchanged)
 // ---------------------------------------------------------------------------
 
 class _GuestBanner extends StatelessWidget {

@@ -7,7 +7,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -189,7 +188,7 @@ class ExerciseData {
       targetForward: (j["target_forward"] ?? 30).toDouble(),
       targetBackward: (j["target_backward"] ?? 15).toDouble(),
       reps: _toInt(j["reps"]),
-      repsLast: _toInt(j["reps_last"]),
+      repsLast: _toInt(j["repsLast"]),
       armed: (j["armed"] ?? true) as bool,
       levelUp: (j["level_up"] ?? false) as bool,
       direction: (j["direction"] ?? "forward") as String,
@@ -472,14 +471,15 @@ class _ExercisePageState extends State<ExercisePage> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.5,
+            // Camera takes up remaining space after the info card and buttons
+            Flexible(
+              flex: 5,
               child: Center(child: WebCameraStreamer(backend: backend)),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ValueListenableBuilder(
               valueListenable: backend.data,
               builder: (_, ExerciseData d, __) {
@@ -500,8 +500,9 @@ class _ExercisePageState extends State<ExercisePage> {
 
                 return Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           d.foundHand ? "${displayAngle.toStringAsFixed(1)}°" : "--.-°",
@@ -516,7 +517,7 @@ class _ExercisePageState extends State<ExercisePage> {
                           "Dir: ${d.direction} | Hand: $shownHand | "
                           "Armed: ${d.armed} | FPS: ${d.fps.toStringAsFixed(1)}",
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           "Reps: ${d.reps} (Last: ${d.repsLast})",
                           style: const TextStyle(
@@ -524,7 +525,7 @@ class _ExercisePageState extends State<ExercisePage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -546,7 +547,7 @@ class _ExercisePageState extends State<ExercisePage> {
                           ],
                         ),
                         if (!d.foundHand) ...[
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           Text(
                             "No hand detected. Move your hand closer and increase lighting.",
                             style: TextStyle(
@@ -556,7 +557,7 @@ class _ExercisePageState extends State<ExercisePage> {
                           ),
                         ],
                         if (d.warning != null) ...[
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           Text(
                             d.warning!,
                             style: TextStyle(
@@ -566,7 +567,7 @@ class _ExercisePageState extends State<ExercisePage> {
                           ),
                         ],
                         if (d.levelUp) ...[
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           Text(
                             "LEVEL UP!",
                             style: TextStyle(
@@ -582,7 +583,7 @@ class _ExercisePageState extends State<ExercisePage> {
                 );
               },
             ),
-            const Spacer(),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -600,7 +601,7 @@ class _ExercisePageState extends State<ExercisePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             OutlinedButton(
               onPressed: backend.connect,
               child: const Text("Reconnect"),
