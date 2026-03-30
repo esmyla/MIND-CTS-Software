@@ -1,0 +1,28 @@
+# --- Python virtual environments ---
+.venv/
+venv/
+env/
+*/.venv/
+*/venv/
+
+# --- Python cache ---
+__pycache__/
+*.pyc
+
+# --- Site-packages (should never be tracked) ---
+site-packages/
+
+# --- Flutter/Dart build output ---
+build/
+.ios/
+.android/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# --- OS/Editor Files ---
+.DS_Store
+Thumbs.db
+
+# --- Other ---
+*.log
