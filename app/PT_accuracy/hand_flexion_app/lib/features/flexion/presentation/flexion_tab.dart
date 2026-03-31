@@ -1,10 +1,13 @@
 /// lib/features/flexion/presentation/flexion_tab.dart
 ///
-/// Non-invasive wrapper around [StartPage] / [ExercisePage] that shows a
-/// "Switch Direction" overlay when the server signals level_up == true.
+/// Non-invasive wrapper around [StartPage] that shows a full-screen
+/// "Session Complete" overlay when [ExercisePage] signals completion.
 ///
-/// IMPORTANT: This file does NOT modify the rep algorithm, direction logic,
-/// or any internal state of [ExercisePage]. The overlay is purely additive.
+/// Callback chain:
+///   FlexionTab._handleSessionComplete
+///     → StartPage.onSessionComplete
+///       → ExercisePage.onLevelUp
+///         → fires after Supabase row is inserted
 library;
 
 import 'package:flutter/material.dart';
@@ -19,20 +22,11 @@ class FlexionTab extends StatefulWidget {
 }
 
 class _FlexionTabState extends State<FlexionTab> {
-  /// Tracks the last completed direction so the popup message is accurate.
-  final String _lastCompletedDirection = 'forward';
+  bool _showCompletion = false;
 
-  /// Whether the direction-switch overlay is currently visible.
-  bool _showOverlay = false;
-
-  void _handleLevelUp() {
+  void _handleSessionComplete() {
     if (!mounted) return;
-    setState(() => _showOverlay = true);
-
-    // Auto-dismiss after 3 seconds.
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _showOverlay = false);
-    });
+    setState(() => _showCompletion = true);
   }
 
   @override
@@ -41,21 +35,22 @@ class _FlexionTabState extends State<FlexionTab> {
 
     return Stack(
       children: [
-        // ── The existing flexion flow (unmodified) ──────────────────────────
+        // ── Flexion flow (StartPage → ExercisePage) ─────────────────────────
         Navigator(
           onGenerateRoute: (_) => MaterialPageRoute(
-            builder: (_) => const StartPage(),
+            builder: (_) => StartPage(
+              onSessionComplete: _handleSessionComplete,
+            ),
           ),
         ),
 
-        // ── Non-blocking overlay (hidden unless _showOverlay == true) ───────
-        if (_showOverlay)
+        // ── Session-complete overlay ─────────────────────────────────────────
+        if (_showCompletion)
           Positioned.fill(
             child: GestureDetector(
-              // Tap anywhere to dismiss early.
-              onTap: () => setState(() => _showOverlay = false),
+              onTap: () => setState(() => _showCompletion = false),
               child: AnimatedOpacity(
-                opacity: _showOverlay ? 1.0 : 0.0,
+                opacity: _showCompletion ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
                 child: Container(
                   color: Colors.black.withOpacity(0.55),
@@ -84,7 +79,7 @@ class _FlexionTabState extends State<FlexionTab> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Great job! 🎉',
+                          'Session Complete! 🎉',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: cs.onSurface,
@@ -93,17 +88,16 @@ class _FlexionTabState extends State<FlexionTab> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'You completed 5 reps in '
-                          '${_lastCompletedDirection.toUpperCase()} direction.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(color: cs.onSurface.withOpacity(0.8)),
+                          'You completed your full forward and backward '
+                          'flexion session. Your progress has been saved.',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: cs.onSurface.withOpacity(0.8),
+                              ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Please switch direction and continue.',
+                          'Keep it up — see you next session!',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: cs.primary,
                                 fontWeight: FontWeight.w600,
@@ -112,12 +106,12 @@ class _FlexionTabState extends State<FlexionTab> {
                         ),
                         const SizedBox(height: 24),
                         FilledButton(
-                          onPressed: () => setState(() => _showOverlay = false),
-                          child: const Text('Got it — switching now'),
+                          onPressed: () => setState(() => _showCompletion = false),
+                          child: const Text('Done'),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Auto-dismisses in 3 s  •  Tap anywhere to close',
+                          'Tap anywhere to close',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: cs.onSurface.withOpacity(0.4),
                               ),
