@@ -3,54 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login</title>
+    <title>Doctor Portal | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-
-  <body class="min-h-screen bg-indigo-50 flex items-center justify-center p-6">
-    <div class="w-full max-w-sm bg-white rounded-xl shadow-lg p-6">
-      <h1 class="text-2xl font-bold text-gray-900">Log in</h1>
-      <p class="text-sm text-gray-600 mt-1">Use your email + password.</p>
-
-      <form id="loginForm" class="mt-6 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            id="email"
-            type="email"
-            required
-            class="mt-1 w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="you@email.com"
-          />
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="min-h-screen flex items-center justify-center p-4">
+      <section class="w-full max-w-md rounded-2xl shadow-xl border border-slate-200 bg-white p-6 sm:p-8">
+        <div class="text-center">
+          <p class="text-sm font-semibold uppercase tracking-wider text-sky-600">CTS Doctor Portal</p>
+          <h1 id="authTitle" class="mt-2 text-2xl font-bold">Sign in</h1>
+          <p class="mt-1 text-sm text-slate-500">Secure access to patient rehab analytics.</p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            class="mt-1 w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
-        </div>
+        <form id="authForm" class="mt-8 space-y-4">
+          <div>
+            <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+            <input id="email" type="email" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="doctor@clinic.com" />
+          </div>
 
-        <button
-          type="submit"
-          class="w-full rounded-md bg-blue-600 text-white py-2 font-semibold hover:bg-blue-700 transition"
-        >
-          Log in
+          <div>
+            <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+            <input id="password" type="password" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="••••••••" />
+          </div>
+
+          <button id="authSubmitBtn" type="submit" class="w-full rounded-lg bg-sky-600 py-2.5 font-semibold text-white transition hover:bg-sky-700">Sign in</button>
+        </form>
+
+        <button id="toggleModeBtn" class="mt-4 w-full rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          Need an account? Create one
         </button>
-      </form>
 
-      <div class="mt-4 text-sm text-gray-600">
-        No account?
-        <button id="signupBtn" class="text-blue-700 font-semibold hover:underline">
-          Create one
-        </button>
-      </div>
-
-      <div id="msg" class="mt-4 text-sm text-red-600 hidden"></div>
+        <p id="msg" class="mt-4 hidden rounded-lg px-3 py-2 text-sm"></p>
+      </section>
     </div>
 
     <script type="module" src="login.js"></script>
