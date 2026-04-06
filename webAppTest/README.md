@@ -31,6 +31,10 @@ CSV files are in `webAppTest/data`:
 3. Import `profiles_dummy.csv`.
 4. Import `doctor_patients_dummy.csv`.
 5. Import baseline/pinch/grip/flexion CSVs.
+## What was added
+- Supabase email/password auth login + account creation.
+- Patient selection view sourced from `baseline`, `pinch`, `grip`, and `flexion` tables.
+- Per-patient dashboard with KPI cards, trend graphs, and activity log.
 
 ## Deploy on Vercel
 1. Import this repository in Vercel.
@@ -38,3 +42,5 @@ CSV files are in `webAppTest/data`:
 3. Framework preset: **Other**.
 4. Build command: *(leave empty)*.
 5. Output directory: `.`
+
+The app currently uses the provided Supabase URL + anon key in `supabase.js`.

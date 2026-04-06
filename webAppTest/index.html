@@ -16,11 +16,6 @@
         </div>
 
         <form id="authForm" class="mt-8 space-y-4">
-          <div id="fullNameWrap" class="hidden">
-            <label for="fullName" class="block text-sm font-medium text-slate-700">Full name</label>
-            <input id="fullName" type="text" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="Dr. Jane Smith" />
-          </div>
-
           <div>
             <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
             <input id="email" type="email" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="doctor@clinic.com" />
@@ -30,10 +25,6 @@
             <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
             <input id="password" type="password" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500" placeholder="••••••••" />
           </div>
-
-          <p id="roleHint" class="hidden rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-800">
-            New accounts created here are marked as <strong>doctor</strong>.
-          </p>
 
           <button id="authSubmitBtn" type="submit" class="w-full rounded-lg bg-sky-600 py-2.5 font-semibold text-white transition hover:bg-sky-700">Sign in</button>
         </form>

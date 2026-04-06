@@ -6,30 +6,12 @@ document.getElementById("logoutBtn").addEventListener("click", signOutAndRedirec
 
 const params = new URLSearchParams(window.location.search);
 const patientId = params.get("patient");
-const patientName = params.get("name");
 
 if (!patientId) {
   window.location.href = "patients.html";
 }
 
-document.getElementById("patientIdText").textContent = patientName
-  ? `Patient: ${patientName} • ${patientId}`
-  : `Patient: ${patientId}`;
-
-const { data: meData } = await supabase.auth.getUser();
-const me = meData?.user;
-if (me) {
-  const { data: assignment, error: assignmentError } = await supabase
-    .from("doctor_patients")
-    .select("patient_id")
-    .eq("doctor_id", me.id)
-    .eq("patient_id", patientId)
-    .limit(1);
-
-  if (assignmentError || !assignment || assignment.length === 0) {
-    window.location.href = "patients.html";
-  }
-}
+document.getElementById("patientIdText").textContent = `Patient: ${patientId}`;
 
 const [baselineRes, pinchRes, gripRes, flexionRes] = await Promise.all([
   supabase.from("baseline").select("*").eq("user_id", patientId).order("created_at", { ascending: true }).limit(1),

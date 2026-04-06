@@ -1,161 +1,78 @@
-import { supabase, requireAuthOrRedirect, signOutAndRedirect, getCurrentUser } from "./supabase.js";
+import { supabase, requireAuthOrRedirect, signOutAndRedirect } from "./supabase.js";
 
-const allPatientsGrid = document.getElementById("allPatientsGrid");
-const assignedGrid = document.getElementById("assignedGrid");
-const allEmptyState = document.getElementById("allEmptyState");
-const assignedEmptyState = document.getElementById("assignedEmptyState");
-const setupNotice = document.getElementById("setupNotice");
+const patientsGrid = document.getElementById("patientsGrid");
+const emptyState = document.getElementById("emptyState");
 const summary = document.getElementById("summary");
 const searchInput = document.getElementById("searchInput");
 const logoutBtn = document.getElementById("logoutBtn");
 
 await requireAuthOrRedirect();
-const currentUser = await getCurrentUser();
 
 logoutBtn.addEventListener("click", signOutAndRedirect);
 
-let allPatients = [];
-let assignedPatients = new Set();
-
-function showSetupNotice(message) {
-  setupNotice.textContent = message;
-  setupNotice.classList.remove("hidden");
-}
-
-function normalize(text) {
-  return (text || "").toLowerCase();
-}
-
-function patientMatchesQuery(patient, query) {
-  const q = normalize(query.trim());
-  if (!q) return true;
-
-  return [patient.full_name, patient.email, patient.user_id].some((field) => normalize(field).includes(q));
-}
-
-function patientCard(patient, isAssigned) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "rounded-xl border border-slate-200 bg-slate-50 p-4";
-
-  const openBtn = `<button data-action="open" data-id="${patient.user_id}" class="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">Open Dashboard</button>`;
-  const assignBtn = isAssigned
-    ? `<button data-action="unassign" data-id="${patient.user_id}" class="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">Unassign</button>`
-    : `<button data-action="assign" data-id="${patient.user_id}" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Assign</button>`;
-
-  wrapper.innerHTML = `
-    <p class="text-base font-semibold text-slate-900">${patient.full_name || "Unnamed Patient"}</p>
-    <p class="mt-1 text-xs text-slate-600">${patient.email || "No email"}</p>
-    <p class="mt-1 break-all font-mono text-xs text-slate-500">${patient.user_id}</p>
-    <div class="mt-3 flex flex-wrap gap-2">${openBtn}${assignBtn}</div>
-  `;
-
-  wrapper.querySelectorAll("button").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const action = button.dataset.action;
-      const userId = button.dataset.id;
-
-      if (action === "open") {
-        window.location.href = `dashboard.html?patient=${encodeURIComponent(userId)}&name=${encodeURIComponent(patient.full_name || "")}`;
-        return;
-      }
-
-      if (!currentUser) return;
-
-      if (action === "assign") {
-        const { error } = await supabase.from("doctor_patients").upsert(
-          {
-            doctor_id: currentUser.id,
-            patient_id: userId,
-          },
-          { onConflict: "doctor_id,patient_id" },
-        );
-
-        if (error) {
-          showSetupNotice(`Assignment failed: ${error.message}`);
-          return;
-        }
-
-        assignedPatients.add(userId);
-      }
-
-      if (action === "unassign") {
-        const { error } = await supabase
-          .from("doctor_patients")
-          .delete()
-          .eq("doctor_id", currentUser.id)
-          .eq("patient_id", userId);
-
-        if (error) {
-          showSetupNotice(`Unassign failed: ${error.message}`);
-          return;
-        }
-
-        assignedPatients.delete(userId);
-      }
-
-      render(searchInput.value);
-    });
-  });
-
-  return wrapper;
-}
-
-async function loadPatientsFromProfiles() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("user_id, full_name, email, role")
-    .eq("role", "patient")
-    .order("full_name", { ascending: true });
-
+const getRows = async (tableName) => {
+  const { data, error } = await supabase.from(tableName).select("user_id, created_at").order("created_at", { ascending: false });
   if (error) {
-    showSetupNotice(
-      `Could not load patient directory by name (${error.message}). Run webAppTest/sql/doctor_portal_setup.sql and ensure RLS policies permit doctor reads.`,
-    );
+    console.error(`Failed loading ${tableName}`, error.message);
     return [];
   }
-
   return data || [];
-}
+};
 
-async function loadAssignedPatients() {
-  if (!currentUser) return new Set();
+const [baseline, pinch, grip, flexion] = await Promise.all([
+  getRows("baseline"),
+  getRows("pinch"),
+  getRows("grip"),
+  getRows("flexion"),
+]);
 
-  const { data, error } = await supabase
-    .from("doctor_patients")
-    .select("patient_id")
-    .eq("doctor_id", currentUser.id);
+const patientMap = new Map();
 
-  if (error) {
-    showSetupNotice(
-      `Could not load assignments (${error.message}). Run webAppTest/sql/doctor_portal_setup.sql and ensure policy allows doctor assignment reads.`,
-    );
-    return new Set();
-  }
+[...baseline, ...pinch, ...grip, ...flexion].forEach((entry) => {
+  const row = patientMap.get(entry.user_id) || { user_id: entry.user_id, records: 0, lastActivity: null };
+  row.records += 1;
+  const time = entry.created_at ? new Date(entry.created_at).getTime() : null;
+  if (time && (!row.lastActivity || time > row.lastActivity)) row.lastActivity = time;
+  patientMap.set(entry.user_id, row);
+});
 
-  return new Set((data || []).map((row) => row.patient_id));
+const patients = [...patientMap.values()].sort((a, b) => (b.lastActivity || 0) - (a.lastActivity || 0));
+summary.textContent = `${patients.length} patients found from existing rehab data tables.`;
+
+function formatDate(ms) {
+  if (!ms) return "No activity timestamp";
+  return new Date(ms).toLocaleString();
 }
 
 function render(query = "") {
-  const filtered = allPatients.filter((p) => patientMatchesQuery(p, query));
-  const assigned = filtered.filter((p) => assignedPatients.has(p.user_id));
+  const filtered = patients.filter((p) => p.user_id.toLowerCase().includes(query.toLowerCase().trim()));
 
-  summary.textContent = `${allPatients.length} patient profiles available. ${assignedPatients.size} assigned to you.`;
+  patientsGrid.innerHTML = "";
 
-  allPatientsGrid.innerHTML = "";
-  assignedGrid.innerHTML = "";
+  if (!filtered.length) {
+    emptyState.classList.remove("hidden");
+    return;
+  }
 
-  if (!filtered.length) allEmptyState.classList.remove("hidden");
-  else allEmptyState.classList.add("hidden");
+  emptyState.classList.add("hidden");
 
-  if (!assigned.length) assignedEmptyState.classList.remove("hidden");
-  else assignedEmptyState.classList.add("hidden");
+  filtered.forEach((patient) => {
+    const card = document.createElement("button");
+    card.className = "rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-sky-300 hover:bg-sky-50";
+    card.innerHTML = `
+      <p class="text-xs uppercase tracking-wide text-slate-500">Patient UUID</p>
+      <p class="mt-1 break-all font-mono text-sm">${patient.user_id}</p>
+      <p class="mt-3 text-sm text-slate-600">Records: <span class="font-semibold text-slate-900">${patient.records}</span></p>
+      <p class="text-xs text-slate-500 mt-1">Last activity: ${formatDate(patient.lastActivity)}</p>
+    `;
 
-  filtered.forEach((patient) => allPatientsGrid.appendChild(patientCard(patient, assignedPatients.has(patient.user_id))));
-  assigned.forEach((patient) => assignedGrid.appendChild(patientCard(patient, true)));
+    card.addEventListener("click", () => {
+      window.location.href = `dashboard.html?patient=${encodeURIComponent(patient.user_id)}`;
+    });
+
+    patientsGrid.appendChild(card);
+  });
 }
-
-allPatients = await loadPatientsFromProfiles();
-assignedPatients = await loadAssignedPatients();
 
 searchInput.addEventListener("input", (e) => render(e.target.value));
 render();

@@ -5,8 +5,6 @@ const authForm = document.getElementById("authForm");
 const authTitle = document.getElementById("authTitle");
 const authSubmitBtn = document.getElementById("authSubmitBtn");
 const toggleModeBtn = document.getElementById("toggleModeBtn");
-const fullNameWrap = document.getElementById("fullNameWrap");
-const roleHint = document.getElementById("roleHint");
 
 let mode = "signin";
 
@@ -20,24 +18,10 @@ function showMsg(text, isError = true) {
 function setMode(nextMode) {
   mode = nextMode;
   const isSignIn = mode === "signin";
-  authTitle.textContent = isSignIn ? "Sign in" : "Create doctor account";
+  authTitle.textContent = isSignIn ? "Sign in" : "Create account";
   authSubmitBtn.textContent = isSignIn ? "Sign in" : "Create account";
   toggleModeBtn.textContent = isSignIn ? "Need an account? Create one" : "Already have an account? Sign in";
-  fullNameWrap.classList.toggle("hidden", isSignIn);
-  roleHint.classList.toggle("hidden", isSignIn);
   msgEl.classList.add("hidden");
-}
-
-async function createProfile(user, fullName) {
-  const payload = {
-    user_id: user.id,
-    full_name: fullName,
-    email: user.email,
-    role: "doctor",
-  };
-
-  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
-  return error;
 }
 
 await redirectIfAuthed();
@@ -76,20 +60,18 @@ authForm.addEventListener("submit", async (e) => {
     },
   });
 
-  if (error) return showMsg(error.message, true);
-
-  if (data.user) {
-    const profileError = await createProfile(data.user, fullName);
-    if (profileError) {
-      return showMsg(
-        `Account created, but profile setup failed: ${profileError.message}. Run SQL setup script in webAppTest/sql/doctor_portal_setup.sql.`,
-        true,
-      );
-    }
+  if (mode === "signin") {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return showMsg(error.message, true);
+    window.location.href = "patients.html";
+    return;
   }
 
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) return showMsg(error.message, true);
+
   showMsg(
-    "Doctor account created. If email confirmation is enabled in Supabase, verify your inbox before signing in.",
+    "Account created. If email confirmation is enabled in Supabase, verify your inbox before signing in.",
     false,
   );
 });
