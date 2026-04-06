@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doctor Portal | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div>
+          <h1 class="text-xl font-bold">Patient Dashboard</h1>
+          <p id="patientIdText" class="text-xs text-slate-500"></p>
+        </div>
+        <div class="flex gap-2">
+          <a href="patients.html" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Back to Patients</a>
+          <button id="logoutBtn" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" id="kpiCards"></section>
+
+      <section class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="pinchChart" height="240"></canvas></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="gripChart" height="240"></canvas></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="flexionChart" height="240"></canvas></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="sessionChart" height="240"></canvas></div>
+      </section>
+
+      <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+        <h2 class="text-lg font-semibold">Session Activity Log</h2>
+        <p class="mt-1 text-sm text-slate-500">Chronological record across pinch, grip, and flexion measurements.</p>
+        <div class="mt-4 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold">Timestamp</th>
+                <th class="px-3 py-2 text-left font-semibold">Session</th>
+                <th class="px-3 py-2 text-left font-semibold">Type</th>
+                <th class="px-3 py-2 text-left font-semibold">Details</th>
+              </tr>
+            </thead>
+            <tbody id="activityBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>
