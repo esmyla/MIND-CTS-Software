@@ -1,4 +1,3 @@
-// supabase.js
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 export const SUPABASE_URL = "https://cmmumwwzydfebahhgfyi.supabase.co";
@@ -16,7 +15,18 @@ export async function requireAuthOrRedirect() {
   return data.session;
 }
 
+export async function getCurrentUser() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user || null;
+}
+
 export async function redirectIfAuthed() {
   const { data } = await supabase.auth.getSession();
-  if (data.session) window.location.href = "app.html";
+  if (data.session) window.location.href = "patients.html";
+}
+
+export async function signOutAndRedirect() {
+  await supabase.auth.signOut();
+  window.location.href = "index.html";
 }
