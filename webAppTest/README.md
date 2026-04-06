@@ -1,5 +1,36 @@
 # Doctor Portal (Vercel-ready static app)
 
+## What this portal now does
+- Doctor login + create-account with **full name, email, password**.
+- New doctor accounts are tagged with role metadata `doctor`.
+- Doctors can search a patient directory by **name/email/UUID**.
+- Doctors can assign and unassign patients in-app.
+- Doctors open dashboards only for assigned patients.
+
+## Important architecture note
+Do **not** add custom columns directly to `auth.users` unless absolutely required.
+Use a public `profiles` table for app-level fields (name, role, etc.) and keep Auth as identity-only.
+
+This repo includes `webAppTest/sql/doctor_portal_setup.sql` to create:
+- `public.profiles` (`user_id`, `full_name`, `email`, `role`)
+- `public.doctor_patients` mapping table
+- RLS policies so doctors can read patient profiles and manage their own assignments.
+
+## Dummy CSV data for Supabase import
+CSV files are in `webAppTest/data`:
+- `profiles_dummy.csv`
+- `doctor_patients_dummy.csv`
+- `baseline_dummy.csv`
+- `pinch_dummy.csv`
+- `grip_dummy.csv`
+- `flexion_dummy.csv`
+
+### Import order
+1. Create real auth users first (UUIDs must exist in `auth.users`).
+2. Update CSV UUIDs to match your real users.
+3. Import `profiles_dummy.csv`.
+4. Import `doctor_patients_dummy.csv`.
+5. Import baseline/pinch/grip/flexion CSVs.
 ## What was added
 - Supabase email/password auth login + account creation.
 - Patient selection view sourced from `baseline`, `pinch`, `grip`, and `flexion` tables.

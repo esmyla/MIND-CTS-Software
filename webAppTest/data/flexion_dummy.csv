@@ -1,0 +1,7 @@
+user_id,session_id,degree_forward,repetitions,level_up,created_at,degree_backwards
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1,101,44,12,false,2026-03-21T11:01:00Z,20
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1,102,47,14,true,2026-03-28T11:01:00Z,21
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2,103,37,10,false,2026-03-21T11:06:00Z,17
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2,104,40,11,true,2026-03-28T11:06:00Z,18
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3,105,49,13,false,2026-03-21T11:11:00Z,22
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3,106,52,15,true,2026-03-28T11:11:00Z,24

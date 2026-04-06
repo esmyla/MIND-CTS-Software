@@ -38,6 +38,27 @@ authForm.addEventListener("submit", async (e) => {
 
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
+  const fullName = document.getElementById("fullName").value.trim();
+
+  if (mode === "signin") {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return showMsg(error.message, true);
+    window.location.href = "patients.html";
+    return;
+  }
+
+  if (!fullName) return showMsg("Please enter your full name.");
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        role: "doctor",
+      },
+    },
+  });
 
   if (mode === "signin") {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
