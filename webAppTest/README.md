@@ -14,6 +14,8 @@ Use a public `profiles` table for app-level fields (name, role, etc.) and keep A
 This repo includes `webAppTest/sql/doctor_portal_setup.sql` to create:
 - `public.profiles` (`user_id`, `full_name`, `email`, `role`)
 - `public.doctor_patients` mapping table
+- RLS policies so doctors can read patient profiles and manage their own assignments
+- an `auth.users` trigger that auto-creates/syncs profile rows on signup.
 - RLS policies so doctors can read patient profiles and manage their own assignments.
 
 ## Dummy CSV data for Supabase import
@@ -26,6 +28,12 @@ CSV files are in `webAppTest/data`:
 - `flexion_dummy.csv`
 
 ### Import order
+1. Run `webAppTest/sql/doctor_portal_setup.sql` once in Supabase SQL Editor.
+2. Create real auth users first (UUIDs must exist in `auth.users`).
+3. Update CSV UUIDs to match your real users.
+4. Import `profiles_dummy.csv` (optional if trigger already creates them).
+5. Import `doctor_patients_dummy.csv`.
+6. Import baseline/pinch/grip/flexion CSVs.
 1. Create real auth users first (UUIDs must exist in `auth.users`).
 2. Update CSV UUIDs to match your real users.
 3. Import `profiles_dummy.csv`.
