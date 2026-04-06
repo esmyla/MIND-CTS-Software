@@ -16,6 +16,7 @@ This repo includes `webAppTest/sql/doctor_portal_setup.sql` to create:
 - `public.doctor_patients` mapping table
 - RLS policies so doctors can read patient profiles and manage their own assignments
 - an `auth.users` trigger that auto-creates/syncs profile rows on signup.
+- RLS policies so doctors can read patient profiles and manage their own assignments.
 
 ## Dummy CSV data for Supabase import
 CSV files are in `webAppTest/data`:
@@ -33,6 +34,15 @@ CSV files are in `webAppTest/data`:
 4. Import `profiles_dummy.csv` (optional if trigger already creates them).
 5. Import `doctor_patients_dummy.csv`.
 6. Import baseline/pinch/grip/flexion CSVs.
+1. Create real auth users first (UUIDs must exist in `auth.users`).
+2. Update CSV UUIDs to match your real users.
+3. Import `profiles_dummy.csv`.
+4. Import `doctor_patients_dummy.csv`.
+5. Import baseline/pinch/grip/flexion CSVs.
+## What was added
+- Supabase email/password auth login + account creation.
+- Patient selection view sourced from `baseline`, `pinch`, `grip`, and `flexion` tables.
+- Per-patient dashboard with KPI cards, trend graphs, and activity log.
 
 ## Deploy on Vercel
 1. Import this repository in Vercel.
@@ -40,3 +50,5 @@ CSV files are in `webAppTest/data`:
 3. Framework preset: **Other**.
 4. Build command: *(leave empty)*.
 5. Output directory: `.`
+
+The app currently uses the provided Supabase URL + anon key in `supabase.js`.

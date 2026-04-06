@@ -5,8 +5,6 @@ const authForm = document.getElementById("authForm");
 const authTitle = document.getElementById("authTitle");
 const authSubmitBtn = document.getElementById("authSubmitBtn");
 const toggleModeBtn = document.getElementById("toggleModeBtn");
-const fullNameWrap = document.getElementById("fullNameWrap");
-const roleHint = document.getElementById("roleHint");
 
 let mode = "signin";
 
@@ -20,11 +18,9 @@ function showMsg(text, isError = true) {
 function setMode(nextMode) {
   mode = nextMode;
   const isSignIn = mode === "signin";
-  authTitle.textContent = isSignIn ? "Sign in" : "Create doctor account";
+  authTitle.textContent = isSignIn ? "Sign in" : "Create account";
   authSubmitBtn.textContent = isSignIn ? "Sign in" : "Create account";
   toggleModeBtn.textContent = isSignIn ? "Need an account? Create one" : "Already have an account? Sign in";
-  fullNameWrap.classList.toggle("hidden", isSignIn);
-  roleHint.classList.toggle("hidden", isSignIn);
   msgEl.classList.add("hidden");
 }
 
@@ -64,10 +60,18 @@ authForm.addEventListener("submit", async (e) => {
     },
   });
 
+  if (mode === "signin") {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return showMsg(error.message, true);
+    window.location.href = "patients.html";
+    return;
+  }
+
+  const { error } = await supabase.auth.signUp({ email, password });
   if (error) return showMsg(error.message, true);
 
   showMsg(
-    "Doctor account created. If email confirmation is enabled in Supabase, verify your inbox before signing in. (Profile row is auto-created by the SQL trigger setup.)",
+    "Account created. If email confirmation is enabled in Supabase, verify your inbox before signing in.",
     false,
   );
 });
