@@ -1,0 +1,352 @@
+{
+   "checksum": "da8a2b276f36765fbddcc2673b8ca14f",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "date_added": "13236974312457050",
+            "date_last_used": "0",
+            "guid": "8de23520-92b9-4b36-a26d-0febd054c2fe",
+            "id": "8",
+            "name": "Gmail",
+            "type": "url",
+            "url": "https://accounts.google.com/b/0/AddMailService"
+         }, {
+            "date_added": "13236974312458020",
+            "date_last_used": "0",
+            "guid": "714c8243-dc83-4420-a866-46f01ff81f48",
+            "id": "9",
+            "name": "YouTube",
+            "type": "url",
+            "url": "https://youtube.com/"
+         }, {
+            "date_added": "13251178788934998",
+            "date_last_used": "0",
+            "guid": "609ec122-960f-4282-9e78-1c637fbc789e",
+            "id": "10",
+            "name": "Potify",
+            "type": "url",
+            "url": "https://open.spotify.com/"
+         }, {
+            "date_added": "13237441813346899",
+            "date_last_used": "0",
+            "guid": "ce47ea2f-8da4-4b2e-ba34-fa1d68110a57",
+            "id": "11",
+            "name": "Twitch",
+            "type": "url",
+            "url": "https://www.twitch.tv/"
+         }, {
+            "date_added": "13320107928518255",
+            "date_last_used": "0",
+            "guid": "efa00ff6-23d3-488e-a01e-ec7450beee05",
+            "id": "12",
+            "name": "VIZ | Read Free Shonen Jump Manga - Official & Simul with Japan",
+            "type": "url",
+            "url": "https://www.viz.com/shonenjump"
+         }, {
+            "date_added": "13300217250468136",
+            "date_last_used": "0",
+            "guid": "3d1f1b17-1526-47b2-b483-17370035fc94",
+            "id": "13",
+            "name": "2022 Calender - Google Docs",
+            "type": "url",
+            "url": "https://docs.google.com/document/d/1RzXy6Xpxdlab3F7DppX0nMs8oh5WEBk-Sm3gIqVqKTU/edit"
+         }, {
+            "date_added": "13289959698064184",
+            "date_last_used": "0",
+            "guid": "256ec851-98c8-4617-bd57-6510377f843c",
+            "id": "14",
+            "name": "(2) Home - Roblox",
+            "type": "url",
+            "url": "https://www.roblox.com/home"
+         }, {
+            "date_added": "13289281172988020",
+            "date_last_used": "0",
+            "guid": "bbc63695-7ebb-45cd-b93e-b4d3000e44b9",
+            "id": "15",
+            "name": "Crunchyroll - Watch Popular Anime & Read Manga Online",
+            "type": "url",
+            "url": "https://beta.crunchyroll.com/"
+         }, {
+            "date_added": "13285889194506931",
+            "date_last_used": "0",
+            "guid": "57352704-0da3-43e4-a6c4-b189943bb6bc",
+            "id": "16",
+            "name": "Teyvat Interactive Map",
+            "type": "url",
+            "url": "https://webstatic-sea.mihoyo.com/app/ys-map-sea/index.html?utm_source=hoyolab&lang=en-us#/map/2?shown_types=2,3"
+         }, {
+            "date_added": "13243644959269528",
+            "date_last_used": "0",
+            "guid": "4ae4f9bd-f2d1-4d7f-9a47-09f000268ae7",
+            "id": "17",
+            "name": "Netflix",
+            "type": "url",
+            "url": "https://www.netflix.com/browse"
+         }, {
+            "date_added": "13243645431528928",
+            "date_last_used": "0",
+            "guid": "513b200e-af3c-427d-b0d8-edd935e71f71",
+            "id": "18",
+            "name": "Disney+",
+            "type": "url",
+            "url": "https://www.disneyplus.com/home"
+         }, {
+            "date_added": "13294119211728244",
+            "date_last_used": "0",
+            "guid": "e5da6b1c-89dd-441d-b53f-0e1639cfa2f2",
+            "id": "19",
+            "name": "Online Driver's Education",
+            "type": "url",
+            "url": "https://onlinedrivers.education/course/163534"
+         }, {
+            "date_added": "13288597703168921",
+            "date_last_used": "0",
+            "guid": "49d7d648-8e89-4a67-b820-b4e01c46e28a",
+            "id": "20",
+            "name": "Server | Aternos | Free Minecraft Server",
+            "type": "url",
+            "url": "https://aternos.org/server/"
+         }, {
+            "date_added": "13268625571426075",
+            "date_last_used": "0",
+            "guid": "9e3dc959-657b-4f6f-aade-9e7d757f9a1a",
+            "id": "21",
+            "name": "Prime Video",
+            "type": "url",
+            "url": "https://www.amazon.com/Prime-Video/b?node=2676882011"
+         }, {
+            "date_added": "13241158422408403",
+            "date_last_used": "0",
+            "guid": "351b6329-3df3-464e-8243-1ef55e56391a",
+            "id": "22",
+            "name": "Hypixel SkyBlock Wiki ",
+            "type": "url",
+            "url": "https://hypixel-skyblock.fandom.com/wiki/Hypixel_SkyBlock_Wiki"
+         }, {
+            "date_added": "13238286457895026",
+            "date_last_used": "0",
+            "guid": "086d992b-682c-463e-89ca-e36e8b952a58",
+            "id": "23",
+            "name": "MHS Summer Rdg 2019.pdf",
+            "type": "url",
+            "url": "https://mhs.munster.us/Portals/MHS/Documents/Summer%20Reading/MHS%20Summer%20Rdg%202019.pdf?ver=2019-04-30-165649-960"
+         }, {
+            "date_added": "13251509171589261",
+            "date_last_used": "0",
+            "guid": "3d42df63-065a-4497-85c7-da1b8fa5957b",
+            "id": "24",
+            "name": "YOUCAT",
+            "type": "url",
+            "url": "https://www.cdowcym.org/documents/resources/YOUCAT.pdf"
+         }, {
+            "date_added": "13255737885044953",
+            "date_last_used": "0",
+            "guid": "dd3742f5-03ea-4c5d-a557-8c2af6252ebd",
+            "id": "25",
+            "name": "https://s3.amazonaws.com/decision-point/workbook/WB-spreads.pdf",
+            "type": "url",
+            "url": "https://s3.amazonaws.com/decision-point/workbook/WB-spreads.pdf"
+         }, {
+            "date_added": "13240871062038131",
+            "date_last_used": "0",
+            "guid": "a13cfb04-d086-44b0-8f87-3dc230d8a6fb",
+            "id": "26",
+            "name": "Personal Fitness Merit Badge",
+            "type": "url",
+            "url": "https://docs.google.com/spreadsheets/d/1xHfqFxrPEdnMmw0I36-6NQu8ygpBlns5tO_wo_B_jbE/edit#gid=0"
+         }, {
+            "date_added": "13258683412748055",
+            "date_last_used": "0",
+            "guid": "0742a737-3dbb-4b70-8209-eb06686d8be4",
+            "id": "27",
+            "name": "Azgaar's Fantasy Map Generator v1.5",
+            "type": "url",
+            "url": "https://azgaar.github.io/Fantasy-Map-Generator/"
+         }, {
+            "date_added": "13287301374120293",
+            "date_last_used": "0",
+            "guid": "35ce4337-7147-44e5-ae13-d34044dfec34",
+            "id": "28",
+            "name": "New Tab",
+            "type": "url",
+            "url": "chrome://newtab/"
+         }, {
+            "date_added": "13288639721837563",
+            "date_last_used": "0",
+            "guid": "bba6c8ae-f7c3-41e7-a7af-9bed930db149",
+            "id": "29",
+            "name": "Genshin Impact Daily Check-In",
+            "type": "url",
+            "url": "https://webstatic-sea.mihoyo.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481&mhy_auth_required=true&mhy_presentation_style=fullscreen&utm_source=ingame&utm_medium=notice&utm_campaign=pcm&lang=en&device_type=pc&ext=%7b%22loc%22%3a%7b%22x%22%3a-3086.89892578125%2c%22y%22%3a252.2284393310547%2c%22z%22%3a-4418.71240234375%7d%2c%22platform%22%3a%22WinST%22%7d&game_version=OSRELWin2.4.0_R5691054_S5715829_D5736476&plat_type=pc"
+         }, {
+            "date_added": "13302927053568608",
+            "date_last_used": "0",
+            "guid": "a30a3fc5-734c-49f7-81bd-7ff5836c7a1c",
+            "id": "30",
+            "name": "frie",
+            "type": "url",
+            "url": "https://libbyapp.com/open/loan/19204704/543761"
+         }, {
+            "date_added": "13305337153657687",
+            "date_last_used": "0",
+            "guid": "5ea405eb-189c-4df5-acfa-b28a7fe70320",
+            "id": "31",
+            "name": "Schedule An Appointment - Confirmation | USPS",
+            "type": "url",
+            "url": "https://tools.usps.com/rcas-confirmation.htm?confirmationNumber=2Tmt678smCkqhyyN+pPxlwg=="
+         }, {
+            "date_added": "13310790744994046",
+            "date_last_used": "0",
+            "guid": "cd1a23c7-d3d8-47be-a73f-2f481f501b58",
+            "id": "32",
+            "name": "Dr Dhrolin's Dictionary of Dinosaurs by PalaeoGames — Kickstarter",
+            "type": "url",
+            "url": "https://www.kickstarter.com/projects/palaeogames/dr-dhrolins-dictionary-of-dinosaurs"
+         }, {
+            "date_added": "13318123663604067",
+            "date_last_used": "0",
+            "guid": "24424af4-6e85-412e-a0e1-2cfc6c14cce4",
+            "id": "33",
+            "name": "Steinhardt's Guide to the Eldritch Hunt: A 5e Supplement by MonkeyDM — Kickstarter",
+            "type": "url",
+            "url": "https://www.kickstarter.com/projects/monkey-dm/eldritch-hunt"
+         }, {
+            "children": [ {
+               "children": [ {
+                  "date_added": "13333650998942841",
+                  "date_last_used": "0",
+                  "guid": "7896554c-db7b-48ab-9750-1ab78275b715",
+                  "id": "36",
+                  "name": "Improved Initiative",
+                  "type": "url",
+                  "url": "https://improvedinitiative.app/"
+               }, {
+                  "date_added": "13333651025902268",
+                  "date_last_used": "0",
+                  "guid": "5c4a878e-89f3-44bd-969f-a5476abb4fa7",
+                  "id": "37",
+                  "name": "2-Minute Tabletop – Fantasy RPG Maps, Assets, and Tokens",
+                  "type": "url",
+                  "url": "https://2minutetabletop.com/"
+               }, {
+                  "date_added": "13333651030838553",
+                  "date_last_used": "0",
+                  "guid": "be927ede-c4bc-4d80-9e60-44fb2619bffa",
+                  "id": "38",
+                  "name": "Tabletop Audio - Ambiences and Music for Tabletop Role Playing Games",
+                  "type": "url",
+                  "url": "https://tabletopaudio.com/"
+               }, {
+                  "date_added": "13333651042094172",
+                  "date_last_used": "0",
+                  "guid": "992407bf-7b4b-4a63-9218-63ee57594bf2",
+                  "id": "39",
+                  "name": "Kobold Plus Fight Club - The first rule of Kobold Fight Club is 'Yip Yip!'",
+                  "type": "url",
+                  "url": "https://koboldplus.club/"
+               }, {
+                  "date_added": "13333652062658063",
+                  "date_last_used": "0",
+                  "guid": "e3a56bcd-adad-4f9b-a9e1-3dcbb63b5cf5",
+                  "id": "40",
+                  "name": "(504) Toward Better Rewards | Running the Game - YouTube",
+                  "type": "url",
+                  "url": "https://www.youtube.com/watch?v=zwpQwCWdhL8"
+               }, {
+                  "date_added": "13340080935921304",
+                  "date_last_used": "0",
+                  "guid": "2b1249cb-a9c9-49ce-b8d8-81c39fa8cf76",
+                  "id": "41",
+                  "name": "A Damage Type D&D Puzzle - YouTube",
+                  "type": "url",
+                  "url": "https://www.youtube.com/shorts/-mvJSRJvB9g?si=9yy_qGnYXc-uZw3j"
+               }, {
+                  "date_added": "13341209697370749",
+                  "date_last_used": "0",
+                  "guid": "51cdeb52-60f5-424c-b389-3431fa1417c9",
+                  "id": "42",
+                  "name": "(367) What Your D&D Combat is MISSING - YouTube",
+                  "type": "url",
+                  "url": "https://www.youtube.com/watch?v=NLO8bRwJnno"
+               }, {
+                  "date_added": "13341374147307504",
+                  "date_last_used": "0",
+                  "guid": "29cd696a-096e-4e57-a422-e25b74063480",
+                  "id": "43",
+                  "name": "Pointy Hat: The Necromaton - Google Docs",
+                  "type": "url",
+                  "url": "https://docs.google.com/document/d/1rudRqzAG1yUAZykrGc_PxYvwtGg_Ctyud05V7dZOfmU/edit"
+               } ],
+               "date_added": "13363138614843514",
+               "date_last_used": "0",
+               "date_modified": "13363138614843514",
+               "guid": "6b6fc775-233a-42ca-b272-360cb3e454d4",
+               "id": "35",
+               "name": "DND",
+               "type": "folder"
+            } ],
+            "date_added": "13363138614843468",
+            "date_last_used": "0",
+            "date_modified": "13363138614843468",
+            "guid": "0b1d85ff-1605-4bee-9911-741639ab7d5d",
+            "id": "34",
+            "name": "New folder",
+            "type": "folder"
+         }, {
+            "date_added": "13419042615884616",
+            "date_last_used": "0",
+            "guid": "ee8b2aac-8a1b-477f-bcc4-638861ca0f0a",
+            "id": "7",
+            "name": "McAfee Security",
+            "type": "url",
+            "url": "https://www.mcafee.com/consumer/v/browserfav/hp.html"
+         } ],
+         "date_added": "13419042615488888",
+         "date_last_used": "0",
+         "date_modified": "13419042615884616",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Bookmarks bar",
+         "type": "folder"
+      },
+      "other": {
+         "children": [ {
+            "children": [  ],
+            "date_added": "13364674768242924",
+            "date_last_used": "0",
+            "date_modified": "13364674768242924",
+            "guid": "48e1afe0-7fe9-4960-a474-f8556943d16a",
+            "id": "44",
+            "name": "Other Bookmarks",
+            "type": "folder"
+         }, {
+            "children": [  ],
+            "date_added": "13364674768243065",
+            "date_last_used": "0",
+            "date_modified": "13364674768243065",
+            "guid": "4cc33460-7d83-4797-9254-70ab9ada18c6",
+            "id": "45",
+            "name": "Synced Bookmarks",
+            "type": "folder"
+         } ],
+         "date_added": "13419042615488888",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Other bookmarks",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13419042615488888",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Mobile bookmarks",
+         "type": "folder"
+      }
+   },
+   "version": 1
+}

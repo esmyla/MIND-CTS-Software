@@ -1,0 +1,61 @@
+2026-03-26 23:50:15.735: [INFO] VisibilityChanged: 0
+2026-03-26 23:50:15.845: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.848: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.850: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.852: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.853: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.854: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.855: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.856: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.856: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.858: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.858: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.859: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:15.885: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:15.885: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-03-26 23:50:15.885: [INFO] OnDoneLoading sync enabled: 0
+2026-03-26 23:50:15.894: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-03-26 23:50:18.680: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-03-26 23:50:18.689: [INFO] Primary account changed.
+2026-03-26 23:50:18.689: [INFO] OnPrimaryAccountChanged PrimaryAccountChangeEvent::Type::kSet
+2026-03-26 23:50:18.699: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-03-26 23:50:19.437: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-03-26 23:50:21.038: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.040: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.041: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.042: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.042: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.043: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.045: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.046: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.047: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.048: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.049: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.049: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.050: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.052: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.053: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.055: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.056: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.058: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.059: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.061: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.062: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.064: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.066: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.067: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.068: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.069: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.069: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.070: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.070: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.072: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.074: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.075: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.076: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.077: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.078: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.079: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.079: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.079: [INFO] BookmarkNodeAdded, ABU: 0
+2026-03-26 23:50:21.855: [INFO] Sync initialization duration: 2075ms
