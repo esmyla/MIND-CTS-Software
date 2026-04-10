@@ -16,14 +16,29 @@ import websockets
 from supabase import create_client, Client
 
 # =============================================================================
-# SUPABASE CONFIG
+# SUPABASE CONFIG (MATCHES FLUTTER)
 # =============================================================================
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_URL = os.getenv(
+    "SUPABASE_URL",
+    "https://cmmumwwzydfebahhgfyi.supabase.co"
+)
+
+SUPABASE_ANON_KEY = os.getenv(
+    "SUPABASE_ANON_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtbXVtd3d6eWRmZWJhaGhnZnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MDkwNTAsImV4cCI6MjA3ODM4NTA1MH0.zJBi0owKoaycNzmtAm9_5ZsUwXIUmxAGuCy0AhsaoZc"
+)
 
 supabase: Optional[Client] = None
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+if SUPABASE_URL and SUPABASE_ANON_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        print("[supabase] client initialized")
+    except Exception as e:
+        print("[supabase] failed to init:", e)
+        supabase = None
+else:
+    print("[supabase] not configured — running in guest mode")
 
 # =============================================================================
 # CONFIG
@@ -37,8 +52,8 @@ MIN_ANGLE_TARGET_FORWARD = 25
 MAX_ANGLE_TARGET_BACKWARD = 50
 MIN_ANGLE_TARGET_BACKWARD = 10
 
-DEFAULT_HANDEDNESS = "Left"     # "Left" or "Right"
-DEFAULT_FORWARD_TILT = True     # True forward, False backward
+DEFAULT_HANDEDNESS = "Left"
+DEFAULT_FORWARD_TILT = True
 
 DEFAULT_STATE = {
     "angle_target_forward": 30,
@@ -71,6 +86,7 @@ def get_current_session(user_id: str) -> int:
 def load_state(user_id: str) -> Dict[str, Any]:
     if not supabase:
         return {**DEFAULT_STATE, "session": 0}
+
     try:
         resp = (
             supabase.table("flexion")
@@ -84,12 +100,18 @@ def load_state(user_id: str) -> Dict[str, Any]:
         if resp.data:
             latest = resp.data[0]
             return {
-                "angle_target_forward": float(latest.get("degree_forward", DEFAULT_STATE["angle_target_forward"])),
-                "angle_target_backward": float(latest.get("degree_backward", DEFAULT_STATE["angle_target_backward"])),
+                "angle_target_forward": float(
+                    latest.get("degree_forward", DEFAULT_STATE["angle_target_forward"])
+                ),
+                "angle_target_backward": float(
+                    latest.get("degree_backward", DEFAULT_STATE["angle_target_backward"])
+                ),
                 "reps_last_session": int(latest.get("repetitions", 0)),
                 "session": int(latest.get("session", 0)),
             }
+
         return {**DEFAULT_STATE, "session": 0}
+
     except Exception:
         return {**DEFAULT_STATE, "session": 0}
 
@@ -102,24 +124,22 @@ def save_session(
     level_up: bool = False,
 ) -> None:
     if not supabase:
-        print("Supabase not configured; skipping save_session.")
         return
+
     try:
         session = get_current_session(user_id) + 1
         record = {
             "user_id": user_id,
             "session": session,
-            "degree_forward": int(angle_target_forward),
-            "degree_backward": int(angle_target_backward),
-            "repetitions": int(reps_completed),
-            "level_up": bool(level_up),
+            "degree_forward": angle_target_forward,
+            "degree_backward": angle_target_backward,
+            "repetitions": reps_completed,
+            "level_up": level_up,
             "created_at": datetime.utcnow().isoformat(),
         }
         supabase.table("flexion").insert(record).execute()
-        print(f"✓ Saved session #{session} (reps={reps_completed}, level_up={level_up})")
     except Exception as e:
-        print(f"✗ Error saving session: {e}")
-
+        print("[supabase] save_session error:", e)
 
 # =============================================================================
 # ANGLE + SIGN HELPERS
