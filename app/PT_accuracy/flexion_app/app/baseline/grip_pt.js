@@ -1,1 +1,0 @@
-// Baseline grip tracker
