@@ -5,7 +5,6 @@ import os
 import time
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 
 import cv2
@@ -13,32 +12,29 @@ import mediapipe as mp
 import numpy as np
 import websockets
 
-from supabase import create_client, Client
 
 # =============================================================================
-# SUPABASE CONFIG (MATCHES FLUTTER)
+# PERSISTENCE — deliberately none
 # =============================================================================
-SUPABASE_URL = os.getenv(
-    "SUPABASE_URL",
-    "https://cmmumwwzydfebahhgfyi.supabase.co"
-)
-
-SUPABASE_ANON_KEY = os.getenv(
-    "SUPABASE_ANON_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtbXVtd3d6eWRmZWJhaGhnZnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MDkwNTAsImV4cCI6MjA3ODM4NTA1MH0.zJBi0owKoaycNzmtAm9_5ZsUwXIUmxAGuCy0AhsaoZc"
-)
-
-supabase: Optional[Client] = None
-
-if SUPABASE_URL and SUPABASE_ANON_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-        print("[supabase] client initialized")
-    except Exception as e:
-        print("[supabase] failed to init:", e)
-        supabase = None
-else:
-    print("[supabase] not configured — running in guest mode")
+# This server used to read and write the `flexion` table directly. It never
+# worked, for two independent reasons:
+#
+#   1. It wrote columns that do not exist — `session` (actual: `session_id`)
+#      and `degree_backward` (actual: `degree_backwards`). Every insert raised,
+#      and a bare `except` swallowed it.
+#   2. Even with the right columns it could not write. It connects with the
+#      anon key and no user JWT, so row-level security rejects both reads and
+#      inserts (`42501`). Reads came back empty, so the "restore last session"
+#      path silently fell back to defaults every time.
+#
+# Persistence now lives entirely in the Flutter app, which holds the signed-in
+# user's JWT so RLS applies correctly. The app loads the previous session's
+# targets and pushes them here with `set_target_forward` / `set_target_backward`
+# once connected, and writes the finished session itself.
+#
+# Keep it that way: giving this process database credentials would mean a
+# service-role key on a machine in a lab, which is exactly the key that
+# bypasses RLS.
 
 # =============================================================================
 # CONFIG
@@ -55,91 +51,6 @@ MIN_ANGLE_TARGET_BACKWARD = 10
 DEFAULT_HANDEDNESS = "Left"
 DEFAULT_FORWARD_TILT = True
 
-DEFAULT_STATE = {
-    "angle_target_forward": 30,
-    "angle_target_backward": 15,
-    "reps_last_session": 0,
-}
-
-# =============================================================================
-# SUPABASE HELPERS
-# =============================================================================
-def get_current_session(user_id: str) -> int:
-    if not supabase:
-        return 0
-    try:
-        resp = (
-            supabase.table("flexion")
-            .select("session")
-            .eq("user_id", user_id)
-            .order("session", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if resp.data:
-            return int(resp.data[0]["session"])
-        return 0
-    except Exception:
-        return 0
-
-
-def load_state(user_id: str) -> Dict[str, Any]:
-    if not supabase:
-        return {**DEFAULT_STATE, "session": 0}
-
-    try:
-        resp = (
-            supabase.table("flexion")
-            .select("*")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-
-        if resp.data:
-            latest = resp.data[0]
-            return {
-                "angle_target_forward": float(
-                    latest.get("degree_forward", DEFAULT_STATE["angle_target_forward"])
-                ),
-                "angle_target_backward": float(
-                    latest.get("degree_backward", DEFAULT_STATE["angle_target_backward"])
-                ),
-                "reps_last_session": int(latest.get("repetitions", 0)),
-                "session": int(latest.get("session", 0)),
-            }
-
-        return {**DEFAULT_STATE, "session": 0}
-
-    except Exception:
-        return {**DEFAULT_STATE, "session": 0}
-
-
-def save_session(
-    user_id: str,
-    angle_target_forward: int,
-    angle_target_backward: int,
-    reps_completed: int,
-    level_up: bool = False,
-) -> None:
-    if not supabase:
-        return
-
-    try:
-        session = get_current_session(user_id) + 1
-        record = {
-            "user_id": user_id,
-            "session": session,
-            "degree_forward": angle_target_forward,
-            "degree_backward": angle_target_backward,
-            "repetitions": reps_completed,
-            "level_up": level_up,
-            "created_at": datetime.utcnow().isoformat(),
-        }
-        supabase.table("flexion").insert(record).execute()
-    except Exception as e:
-        print("[supabase] save_session error:", e)
 
 # =============================================================================
 # ANGLE + SIGN HELPERS
@@ -318,13 +229,7 @@ def update_reps_and_warnings(
         state.reps += 1
 
         if state.reps >= NUM_REPS_TO_LEVEL_UP:
-            save_session(
-                state.user_id,
-                int(state.angle_target_forward),
-                int(state.angle_target_backward),
-                state.reps,
-                level_up=True,
-            )
+            # The app persists the session when it sees level_up in the payload.
 
             # Toggle direction and level up for next direction
             state.forward_tilt = not state.forward_tilt
@@ -401,11 +306,9 @@ async def handler(conn):
 
     state = TrackerState(user_id=user_id)
 
-    loaded = load_state(user_id)
-    state.angle_target_forward = float(loaded.get("angle_target_forward", state.angle_target_forward))
-    state.angle_target_backward = float(loaded.get("angle_target_backward", state.angle_target_backward))
-    state.reps_last_session = int(loaded.get("reps_last_session", 0))
-
+    # Targets start at the defaults and are overwritten by the app's
+    # set_target_forward / set_target_backward commands once it connects with
+    # whatever it restored from the database.
     print(f"[server] client connected user_id={user_id}")
 
     landmarker = make_hand_landmarker()
@@ -479,14 +382,27 @@ async def handler(conn):
                 if cmd == "toggle_direction":
                     state.forward_tilt = not state.forward_tilt
 
+                elif cmd in ("set_target_forward", "set_target_backward"):
+                    # The app has always sent these after restoring a patient's
+                    # last session from the database, but there was no handler,
+                    # so every session silently restarted at the defaults.
+                    try:
+                        value = float(data.get("value"))
+                    except (TypeError, ValueError):
+                        print(f"[server] ignoring {cmd} with bad value: {data.get('value')!r}")
+                    else:
+                        if cmd == "set_target_forward":
+                            state.angle_target_forward = max(
+                                MIN_ANGLE_TARGET_FORWARD,
+                                min(value, MAX_ANGLE_TARGET_FORWARD),
+                            )
+                        else:
+                            state.angle_target_backward = max(
+                                MIN_ANGLE_TARGET_BACKWARD,
+                                min(value, MAX_ANGLE_TARGET_BACKWARD),
+                            )
+
                 elif cmd == "level_up":
-                    save_session(
-                        state.user_id,
-                        int(state.angle_target_forward),
-                        int(state.angle_target_backward),
-                        state.reps,
-                        level_up=False,
-                    )
                     if state.forward_tilt:
                         state.angle_target_forward = (
                             state.angle_target_forward + ANGLE_INCREMENT
@@ -520,13 +436,6 @@ async def handler(conn):
 
     finally:
         print(f"[server] client disconnected user_id={user_id}, reps={state.reps}")
-        save_session(
-            state.user_id,
-            int(state.angle_target_forward),
-            int(state.angle_target_backward),
-            state.reps,
-            level_up=False,
-        )
         try:
             landmarker.close()
         except Exception:

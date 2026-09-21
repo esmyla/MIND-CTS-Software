@@ -1,0 +1,14 @@
+# Backend deps for the flexion tracker and the glove sensor bridge.
+#
+# Python 3.9-3.12 ONLY. MediaPipe has no 3.13/3.14 wheels, and 3.14 also breaks
+# its ctypes bindings.
+#
+# mediapipe is pinned below 1.0: the 1.x line aborts on our bundled
+# hand_landmarker.task with "graph_service.h:139 Check failed: service_".
+mediapipe<1.0
+opencv-python
+numpy
+websockets
+pyserial
+supabase
+python-dotenv

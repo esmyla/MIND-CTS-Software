@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/home_provider.dart';
+import '../state/home_data_provider.dart';
 import '../../auth/state/auth_provider.dart';
+import '../../sensors/state/sensor_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -20,11 +22,18 @@ class HomeScreen extends ConsumerWidget {
     final isGuest = session.status == SessionStatus.guest;
 
     final streakAsync = ref.watch(streakProvider);
-    final sessionsAsync = ref.watch(sessionHistoryProvider);
+
+    // Guests have no server-side history, so their calendar comes from the
+    // local shared_preferences record of app opens.
+    final sessionsAsync = isGuest
+        ? ref.watch(sessionHistoryProvider)
+        : ref.watch(realSessionDatesProvider);
 
     // Only read mock data if we actually need it (guest mode)
     final chartData = isGuest ? ref.watch(mockFlexionChartProvider) : const <FlexionDataPoint>[];
-    final gripImprovement = ref.watch(gripImprovementProvider);
+    final realChartAsync = ref.watch(realFlexionChartProvider);
+    final gripImprovementAsync = ref.watch(realGripImprovementProvider);
+    final latestGripAsync = ref.watch(latestGripValueProvider);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -48,7 +57,10 @@ class HomeScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(streakProvider);
-          ref.invalidate(sessionHistoryProvider); // NEW: refresh calendar data too
+          ref.invalidate(sessionHistoryProvider);
+          // Drop the cached table reads so pull-to-refresh actually re-queries
+          // Supabase rather than replaying what the dashboard already had.
+          ref.invalidate(strengthHistoryProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -104,13 +116,40 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _StatCard(
-                    icon: Icons.fitness_center_rounded,
-                    iconColor: cs.primary,
-                    label: 'Grip Strength',
-                    value: gripImprovement == 0 ? 'N/A' : '+${gripImprovement.toStringAsFixed(1)}%',
-                    subtitle: 'Coming from FSR data',
-                    subtitleIcon: Icons.info_outline_rounded,
+                  child: gripImprovementAsync.when(
+                    data: (change) {
+                      final latest = latestGripAsync.valueOrNull;
+                      if (change == null) {
+                        return _StatCard(
+                          icon: Icons.fitness_center_rounded,
+                          iconColor: cs.primary,
+                          label: 'Grip Strength',
+                          value: latest == null ? 'N/A' : latest.toStringAsFixed(0),
+                          subtitle: latest == null
+                              ? 'No sessions yet'
+                              : 'Baseline session',
+                          subtitleIcon: Icons.info_outline_rounded,
+                        );
+                      }
+                      // A negative change is real information for a clinician,
+                      // so show it plainly rather than hiding a regression.
+                      final sign = change >= 0 ? '+' : '';
+                      return _StatCard(
+                        icon: Icons.fitness_center_rounded,
+                        iconColor: change >= 0 ? cs.primary : cs.error,
+                        label: 'Grip Strength',
+                        value: '$sign${change.toStringAsFixed(1)}%',
+                        subtitle: 'vs. baseline',
+                      );
+                    },
+                    loading: () => const _StatCardSkeleton(),
+                    error: (_, __) => _StatCard(
+                      icon: Icons.fitness_center_rounded,
+                      iconColor: cs.primary,
+                      label: 'Grip Strength',
+                      value: '—',
+                      subtitle: 'Unavailable',
+                    ),
                   ),
                 ),
               ],
@@ -126,20 +165,53 @@ class HomeScreen extends ConsumerWidget {
             if (isGuest)
               _FlexionChart(data: chartData, isMock: true)
             else
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.show_chart_rounded, color: cs.outline),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your wrist flexion chart will appear here once data is available.',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(0.7)),
+              realChartAsync.when(
+                // One point is not a trend — keep the empty state until there
+                // are at least two sessions to draw a line between.
+                data: (points) => points.length < 2
+                    ? Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(Icons.show_chart_rounded, color: cs.outline),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  points.isEmpty
+                                      ? 'Your wrist flexion chart will appear here once you complete a session.'
+                                      : 'One session recorded. Complete another to see your trend.',
+                                  style: tt.bodySmall?.copyWith(
+                                      color: cs.onSurface.withOpacity(0.7)),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      )
+                    : _FlexionChart(data: points, isMock: false),
+                loading: () => const Card(
+                  child: SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+                error: (_, __) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: cs.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Could not load your flexion history.',
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurface.withOpacity(0.7)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

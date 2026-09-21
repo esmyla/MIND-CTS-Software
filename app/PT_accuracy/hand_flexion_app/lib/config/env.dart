@@ -45,6 +45,16 @@ class Env {
     defaultValue: 'ws://localhost:8765',
   );
 
+  /// WebSocket URL for the glove sensor bridge (sensor_ws_server.py).
+  ///
+  /// Separate process and port from the flexion server: flexion is camera-based
+  /// and needs no hardware, while this one owns the USB serial connection to the
+  /// glove. Either can run without the other.
+  static const String sensorWsUrl = String.fromEnvironment(
+    'SENSOR_WS_URL',
+    defaultValue: 'ws://localhost:8766',
+  );
+
   // ===========================================================================
   // FEATURE FLAGS
   // ===========================================================================

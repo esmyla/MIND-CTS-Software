@@ -7,6 +7,19 @@
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+    # Stale duplicates left over from earlier restructuring. Not part of the
+    # build; analysing them produces ~150 phantom errors.
+    - therapy_app/**
+    - old_lib/**
 include: package:flutter_lints/flutter.yaml
 
 linter:
