@@ -1,0 +1,11 @@
+# Local development toolchain (Flutter SDK, Python venv) — never commit.
+.devenv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Local secrets. Belt-and-braces: the repo root also ignores .env / *.env.
+.env
+*.env
+!*.env.example
