@@ -43,18 +43,39 @@ using (user_id = auth.uid())
 with check (user_id = auth.uid());
 
 -- Doctor can read all patient profiles by name for search.
+--
+-- The role lookup MUST go through a SECURITY DEFINER function. Inlining it as
+-- `exists (select 1 from public.profiles ...)` makes this a policy on profiles
+-- that reads profiles, which re-enters itself and aborts with
+-- `42P17: infinite recursion detected in policy for relation "profiles"`.
+-- That bug shipped once already and broke every profile read in the portal.
+create or replace function public.is_doctor(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+-- Pin search_path: a SECURITY DEFINER function without this can be hijacked by
+-- a caller-controlled search_path resolving `profiles` to their own table.
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where user_id = uid
+      and role = 'doctor'
+  );
+$$;
+
+revoke all on function public.is_doctor(uuid) from public;
+grant execute on function public.is_doctor(uuid) to authenticated;
+
 drop policy if exists "doctor read patient profiles" on public.profiles;
 create policy "doctor read patient profiles"
 on public.profiles for select
 to authenticated
 using (
   role = 'patient'
-  and exists (
-    select 1
-    from public.profiles as p
-    where p.user_id = auth.uid()
-      and p.role = 'doctor'
-  )
+  and public.is_doctor(auth.uid())
 );
 
 -- Doctor assignment policies.
@@ -91,3 +112,46 @@ drop trigger if exists trg_profiles_touch_updated_at on public.profiles;
 create trigger trg_profiles_touch_updated_at
 before update on public.profiles
 for each row execute function public.touch_updated_at();
+
+
+-- Automatically create a profile row whenever a new auth user is created.
+-- Without this the directory stays empty: signup writes full_name and role
+-- into auth.users metadata, and nothing ever copies them into profiles.
+create or replace function public.handle_new_user_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  meta jsonb;
+  role_value text;
+begin
+  meta := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  role_value := coalesce(meta ->> 'role', 'patient');
+
+  if role_value not in ('doctor', 'patient') then
+    role_value := 'patient';
+  end if;
+
+  insert into public.profiles (user_id, full_name, email, role)
+  values (
+    new.id,
+    nullif(meta ->> 'full_name', ''),
+    new.email,
+    role_value
+  )
+  on conflict (user_id) do update
+  set full_name = excluded.full_name,
+      email = excluded.email,
+      role = excluded.role,
+      updated_at = now();
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user_profile();
