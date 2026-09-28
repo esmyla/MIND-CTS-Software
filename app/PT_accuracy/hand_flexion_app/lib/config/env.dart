@@ -55,6 +55,42 @@ class Env {
     defaultValue: 'ws://localhost:8766',
   );
 
+  /// Why a WebSocket backend cannot be reached from this build, or null when
+  /// it should work.
+  ///
+  /// The two Python backends need a camera and a USB serial port, so they run
+  /// on the clinician's or patient's own machine — never on the web host. On a
+  /// deployed HTTPS page that creates a hard browser limit: mixed-content rules
+  /// block an insecure `ws://` connection outright, and the socket fails before
+  /// it is ever attempted.
+  ///
+  /// Returning the reason lets the sensor screens say what is actually wrong
+  /// instead of showing "not connected" forever on a site where connecting was
+  /// never possible.
+  static String? backendUnavailableReason(String url) {
+    if (url.isEmpty) {
+      return 'No backend is configured for this build.';
+    }
+    final pageIsSecure = Uri.base.scheme == 'https';
+    final socketIsInsecure = url.startsWith('ws://');
+    if (pageIsSecure && socketIsInsecure) {
+      return 'This site is served over HTTPS, which cannot connect to an '
+          'insecure ws:// backend. Run the app locally, or expose the backend '
+          'over wss:// and rebuild with SENSOR_WS_URL / WS_URL set.';
+    }
+    return null;
+  }
+
+  /// True when the app is running from a deployed origin rather than a local
+  /// dev server — used to explain hardware features that only work locally.
+  static bool get isHostedBuild {
+    final host = Uri.base.host;
+    return host.isNotEmpty &&
+        host != 'localhost' &&
+        host != '127.0.0.1' &&
+        host != '[::1]';
+  }
+
   // ===========================================================================
   // FEATURE FLAGS
   // ===========================================================================

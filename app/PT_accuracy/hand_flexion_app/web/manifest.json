@@ -1,11 +1,11 @@
 {
-    "name": "hand_flexion_app",
-    "short_name": "hand_flexion_app",
+    "name": "MIND CTS — Physical Therapy",
+    "short_name": "MIND CTS",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F9FA",
+    "theme_color": "#2D6A7D",
+    "description": "Carpal tunnel rehabilitation: wrist flexion tracking, grip and pinch strength, and guided therapy exercises.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

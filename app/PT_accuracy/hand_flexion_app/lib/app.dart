@@ -58,7 +58,18 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.accessibility_new_rounded, size: 64, color: cs.primary),
+            Image.asset(
+              'assets/brand/logo.png',
+              width: 96,
+              height: 96,
+              // The splash is the first thing drawn; if the asset is missing
+              // from a build, fall back rather than showing a broken box.
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.accessibility_new_rounded,
+                size: 64,
+                color: cs.primary,
+              ),
+            ),
             const SizedBox(height: 16),
             CircularProgressIndicator(color: cs.primary),
           ],

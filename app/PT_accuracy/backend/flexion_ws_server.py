@@ -51,6 +51,13 @@ MIN_ANGLE_TARGET_BACKWARD = 10
 DEFAULT_HANDEDNESS = "Left"
 DEFAULT_FORWARD_TILT = True
 
+# Each session holds its own MediaPipe landmarker (see handler), which costs
+# roughly 150-250 MB. Normally this server runs on the patient's own machine
+# with one session; the cap only matters if a lab hosts it for several people
+# at once, where refusing a session beats running the host out of memory.
+MAX_CONCURRENT_SESSIONS = int(os.getenv("MAX_SESSIONS", "4"))
+ACTIVE_SESSIONS = 0
+
 
 # =============================================================================
 # ANGLE + SIGN HELPERS
@@ -309,7 +316,24 @@ async def handler(conn):
     # Targets start at the defaults and are overwritten by the app's
     # set_target_forward / set_target_backward commands once it connects with
     # whatever it restored from the database.
-    print(f"[server] client connected user_id={user_id}")
+    # Each session needs its OWN landmarker: MediaPipe's VIDEO mode keeps
+    # per-stream tracking state and demands monotonic timestamps, so two
+    # clients sharing one instance would corrupt each other's tracking. That
+    # isolation is correct but not free — roughly 150-250 MB of model and
+    # tensor arena each — so cap concurrency rather than letting the machine
+    # run out of memory mid-session for everybody.
+    global ACTIVE_SESSIONS
+    if ACTIVE_SESSIONS >= MAX_CONCURRENT_SESSIONS:
+        print(f"[server] refusing {user_id}: {ACTIVE_SESSIONS} sessions already active")
+        await conn.close(
+            code=1013,  # "try again later"
+            reason=f"Server at capacity ({MAX_CONCURRENT_SESSIONS} sessions).",
+        )
+        return
+
+    ACTIVE_SESSIONS += 1
+    print(f"[server] client connected user_id={user_id} "
+          f"({ACTIVE_SESSIONS}/{MAX_CONCURRENT_SESSIONS} sessions)")
 
     landmarker = make_hand_landmarker()
 
@@ -435,8 +459,12 @@ async def handler(conn):
         traceback.print_exc()
 
     finally:
-        print(f"[server] client disconnected user_id={user_id}, reps={state.reps}")
+        ACTIVE_SESSIONS -= 1
+        print(f"[server] client disconnected user_id={user_id}, reps={state.reps} "
+              f"({ACTIVE_SESSIONS}/{MAX_CONCURRENT_SESSIONS} sessions)")
         try:
+            # Release the model and its tensor arena, or the slot we just freed
+            # buys nothing and the process grows with every session.
             landmarker.close()
         except Exception:
             pass

@@ -13,7 +13,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../config/env.dart';
 import '../data/hold_capture.dart';
+import 'glove_picker.dart';
 import '../data/sensor_service.dart';
 import '../state/sensor_provider.dart';
 
@@ -162,6 +164,10 @@ class _HoldSessionViewState extends ConsumerState<HoldSessionView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ConnectionBanner(sample: sample),
+          if (sample.isShared) ...[
+            const SizedBox(height: 8),
+            _SharedGloveWarning(viewers: sample.viewers),
+          ],
           const SizedBox(height: 16),
 
           Text(widget.title,
@@ -249,7 +255,10 @@ class _ConnectionBanner extends StatelessWidget {
       bg = cs.errorContainer;
       fg = cs.onErrorContainer;
       icon = Icons.usb_off_rounded;
-      text = 'Glove not connected. Start the sensor bridge, then plug in the glove.';
+      // On a deployed HTTPS page the socket can never open, so say that rather
+      // than implying the glove just needs plugging in.
+      text = Env.backendUnavailableReason(Env.sensorWsUrl) ??
+          'Glove not connected. Start the sensor bridge, then plug in the glove.';
     } else if (sample.isSimulated) {
       bg = cs.tertiaryContainer;
       fg = cs.onTertiaryContainer;
@@ -259,15 +268,20 @@ class _ConnectionBanner extends StatelessWidget {
       bg = cs.secondaryContainer;
       fg = cs.onSecondaryContainer;
       icon = Icons.usb_rounded;
-      text = 'Glove connected.';
+      // Name the device: with a glove each, "connected" alone does not tell a
+      // patient whether it is THEIR glove on the other end.
+      final name = sample.device?.description;
+      text = name == null ? 'Glove connected.' : 'Connected to $name.';
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-      ),
+        onTap: () => showGlovePicker(context),
+        child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           Icon(icon, size: 18, color: fg),
@@ -289,6 +303,60 @@ class _ConnectionBanner extends StatelessWidget {
                     .bodySmall
                     ?.copyWith(color: fg, fontWeight: FontWeight.w700)),
           ],
+          const SizedBox(width: 6),
+          Icon(Icons.chevron_right_rounded, size: 18, color: fg),
+        ],
+      ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared-glove warning
+// ---------------------------------------------------------------------------
+
+/// Shown when more than one session is attached to the bridge.
+///
+/// There is a single glove, so both sessions receive identical readings. Left
+/// unsaid, each person would save the other's squeeze as their own measurement
+/// — wrong data that looks perfectly plausible afterwards.
+class _SharedGloveWarning extends StatelessWidget {
+  const _SharedGloveWarning({required this.viewers});
+
+  final int viewers;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final others = viewers - 1;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.tertiaryContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.tertiary.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.groups_rounded, size: 18, color: cs.onTertiaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              others == 1
+                  ? 'One other session is using this glove. Both of you receive '
+                      'the same readings, so take turns — otherwise their '
+                      'squeeze is saved as yours.'
+                  : '$others other sessions are using this glove. Everyone '
+                      'receives the same readings, so take turns.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onTertiaryContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
         ],
       ),
     );

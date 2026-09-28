@@ -77,10 +77,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // ----------------------------------------------------------
                   // Logo / branding
                   // ----------------------------------------------------------
-                  Icon(
-                    Icons.accessibility_new_rounded,
-                    size: 72,
-                    color: cs.primary,
+                  Image.asset(
+                    'assets/brand/logo.png',
+                    width: 112,
+                    height: 112,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.accessibility_new_rounded,
+                      size: 72,
+                      color: cs.primary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(

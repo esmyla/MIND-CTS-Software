@@ -1,4 +1,4 @@
-"""Glove sensor bridge: USB serial -> WebSocket.
+"""Glove sensor bridge: USB serial -> WebSocket, with device pairing.
 
 The glove's ESP32 (firmware/CTS_IC2.ino) has BLE characteristics defined but BLE
 is not commissioned yet, so the board is wired over USB and we read its serial
@@ -7,7 +7,13 @@ debug line instead:
     IR=61234 BPM=72 TempC=33.41 FSR=2048
 
 Flutter web cannot open a serial port, so this process is the bridge: it reads
-the port, parses each line, and broadcasts JSON to any connected web client.
+the port and broadcasts JSON to any connected web client.
+
+Each patient has their own glove and runs their own copy of this bridge, so the
+app has to know WHICH glove it is talking to. Clients can list the attached
+devices and pair with one; the bridge remembers the pairing by the USB serial
+number, so the same glove is recognised even if it comes back on a different
+port after a replug.
 
 Deliberately dumb by design. This process does *transport only* — it never
 touches Supabase. Session logic (hold windows, top-60% aggregation, baseline
@@ -17,13 +23,16 @@ here would require a service-role key and would bypass RLS.
 
 Usage
 -----
-    # Real glove
+    # Autodetect and attach to the only glove present
+    python sensor_ws_server.py
+
+    # Attach to a specific port
     python sensor_ws_server.py --port /dev/cu.usbmodem1101
 
     # No hardware — replays the firmware's exact line format
     python sensor_ws_server.py --simulate
 
-    # List candidate ports and exit
+    # List candidate devices and exit
     python sensor_ws_server.py --list-ports
 """
 
@@ -38,8 +47,8 @@ import re
 import sys
 import threading
 import time
-from dataclasses import dataclass, asdict
-from typing import Optional, Set
+from dataclasses import dataclass, asdict, field
+from typing import Optional, Set, List, Dict, Any, Tuple
 
 import serial
 import serial.tools.list_ports
@@ -55,7 +64,6 @@ BROADCAST_HZ = 20              # firmware emits ~200 Hz; 20 Hz is plenty for a
                                # 5 s hold (100 samples) and keeps the socket calm
 
 # The firmware's line looks like: "IR=61234 BPM=72 TempC=33.41 FSR=2048".
-# Tolerant of extra whitespace, missing fields, and partial lines.
 _LINE_RE = re.compile(
     r"IR=(?P<ir>-?\d+)\s+"
     r"BPM=(?P<bpm>-?\d+)\s+"
@@ -63,9 +71,114 @@ _LINE_RE = re.compile(
     r"FSR=(?P<fsr>-?\d+)"
 )
 
-# CTS_IC2.ino treats IR > 50000 as "finger is on the sensor". Below that the BPM
-# reading is meaningless, and the firmware zeroes beatAvg.
+# CTS_IC2.ino treats IR > 50000 as "finger is on the sensor".
 IR_FINGER_THRESHOLD = 50_000
+
+# USB vendor ids seen on ESP32 dev boards: Espressif's native USB-serial, and
+# the CP210x / CH340 / FTDI bridges used on third-party boards. Only used to
+# SORT likely gloves to the top — never to hide a port, since a board we don't
+# recognise must still be pairable.
+KNOWN_VENDOR_IDS = {0x303A, 0x10C4, 0x1A86, 0x0403}
+
+# macOS and Linux both expose built-ins that are never a glove.
+_BUILTIN_HINTS = ("bluetooth", "debug-console", "ttys0", "ttyama")
+
+SIMULATED_DEVICE_ID = "simulated-glove"
+
+
+# =============================================================================
+# DEVICE DISCOVERY
+# =============================================================================
+
+def _is_builtin(device_path: str) -> bool:
+    lowered = device_path.lower()
+    return any(hint in lowered for hint in _BUILTIN_HINTS)
+
+
+def describe_port(p) -> Dict[str, Any]:
+    """One serial port as the app sees it.
+
+    `id` is the pairing key. The USB serial number is stable across replugs and
+    across ports, so prefer it; boards that do not report one fall back to the
+    device path, which is the best we can do but will change if it is moved to
+    another USB socket.
+    """
+    serial_number = getattr(p, "serial_number", None)
+    return {
+        "id": serial_number or p.device,
+        "port": p.device,
+        "description": (p.description or "").strip() or p.device,
+        "manufacturer": getattr(p, "manufacturer", None),
+        "product": getattr(p, "product", None),
+        "vid": getattr(p, "vid", None),
+        "pid": getattr(p, "pid", None),
+        "stable_id": serial_number is not None,
+        "likely_glove": getattr(p, "vid", None) in KNOWN_VENDOR_IDS,
+    }
+
+
+def scan_devices() -> List[Dict[str, Any]]:
+    """Candidate gloves, most likely first."""
+    found = [
+        describe_port(p)
+        for p in serial.tools.list_ports.comports()
+        if not _is_builtin(p.device)
+    ]
+    found.sort(key=lambda d: (not d["likely_glove"], d["port"]))
+    return found
+
+
+def resolve_device(device_id: str) -> Optional[Dict[str, Any]]:
+    """Find an attached device by pairing id, or None if it is not plugged in."""
+    for d in scan_devices():
+        if d["id"] == device_id:
+            return d
+    return None
+
+
+def autodetect() -> Optional[Dict[str, Any]]:
+    """Pick a glove when the user has not chosen one.
+
+    Only auto-attaches to a RECOGNISED board, and only when there is exactly
+    one. With two gloves on the bench, guessing would silently record the wrong
+    patient's hand, so we make the client pair explicitly instead.
+    """
+    likely = [d for d in scan_devices() if d["likely_glove"]]
+    if len(likely) == 1:
+        return likely[0]
+    if not likely:
+        others = scan_devices()
+        if len(others) == 1:
+            return others[0]
+    return None
+
+
+# =============================================================================
+# TARGET
+# =============================================================================
+
+class DeviceTarget:
+    """Which glove the reader should be attached to. Changeable at runtime.
+
+    `generation` bumps on every change so the reader thread notices and
+    reconnects without needing to be torn down and restarted.
+    """
+
+    def __init__(self, device: Optional[Dict[str, Any]] = None, simulate: bool = False):
+        self._lock = threading.Lock()
+        self._device = device
+        self._simulate = simulate
+        self._generation = 0
+
+    def set(self, device: Optional[Dict[str, Any]], simulate: bool = False) -> None:
+        with self._lock:
+            self._device = device
+            self._simulate = simulate
+            self._generation += 1
+
+    def get(self) -> Tuple[Optional[Dict[str, Any]], bool, int]:
+        with self._lock:
+            return self._device, self._simulate, self._generation
 
 
 # =============================================================================
@@ -81,11 +194,11 @@ class SensorSample:
     temp_c: float = 0.0
     fsr: int = 0
 
-    # Transport health, so the UI can tell "resting hand" from "unplugged".
     connected: bool = False
     source: str = "none"          # "serial" | "simulate" | "none"
     error: Optional[str] = None
     updated_at: float = 0.0
+    device: Optional[Dict[str, Any]] = field(default=None)
 
     @property
     def finger_present(self) -> bool:
@@ -111,83 +224,89 @@ class SensorState:
 
 
 # =============================================================================
-# SERIAL READER
+# READER
 # =============================================================================
 
-def serial_reader(state: SensorState, port: str, baud: int, stop: threading.Event) -> None:
-    """Read the glove's serial stream until stopped.
-
-    Runs on its own thread because pyserial is blocking. Reconnects on its own
-    so unplugging the glove mid-session degrades instead of crashing.
-    """
-    while not stop.is_set():
-        ser = None
-        try:
-            ser = serial.Serial(port, baud, timeout=1)
-            state.update(connected=True, source="serial", error=None)
-            print(f"[serial] connected: {port} @ {baud}", flush=True)
-
-            # The board resets when the port opens; the first line is usually
-            # a fragment. Drop whatever is already buffered.
-            time.sleep(2.0)
-            ser.reset_input_buffer()
-
-            while not stop.is_set():
-                raw = ser.readline()
-                if not raw:
-                    continue  # timeout, not an error — the board may be quiet
-
-                line = raw.decode("utf-8", errors="replace").strip()
-                match = _LINE_RE.search(line)
-                if not match:
-                    continue  # boot banner, partial line, or BLE log noise
-
-                state.update(
-                    ir=int(match.group("ir")),
-                    bpm=int(match.group("bpm")),
-                    temp_c=float(match.group("temp")),
-                    fsr=int(match.group("fsr")),
-                    connected=True,
-                    error=None,
-                )
-
-        except serial.SerialException as exc:
-            state.update(connected=False, error=f"serial: {exc}")
-            print(f"[serial] {exc} — retrying in 2s", flush=True)
-            stop.wait(2.0)
-        except Exception as exc:  # noqa: BLE001 - reader thread must not die
-            state.update(connected=False, error=f"reader: {exc!r}")
-            print(f"[serial] unexpected: {exc!r} — retrying in 2s", flush=True)
-            stop.wait(2.0)
-        finally:
-            if ser is not None and ser.is_open:
-                try:
-                    ser.close()
-                except Exception:
-                    pass
-
-    state.update(connected=False, source="none")
+def _changed(target: DeviceTarget, generation: int) -> bool:
+    return target.get()[2] != generation
 
 
-# =============================================================================
-# SIMULATOR
-# =============================================================================
+def read_serial(state: SensorState, device: Dict[str, Any], baud: int,
+                target: DeviceTarget, generation: int, stop: threading.Event) -> None:
+    """Stream one glove until it disappears, the target changes, or we stop."""
+    ser = None
+    try:
+        ser = serial.Serial(device["port"], baud, timeout=1)
+        state.update(connected=True, source="serial", error=None, device=device)
+        print(f"[serial] attached: {device['port']} ({device['description']}) @ {baud}", flush=True)
 
-def simulate_reader(state: SensorState, stop: threading.Event) -> None:
+        # The board resets when the port opens; the first line is usually a
+        # fragment. Drop whatever is already buffered.
+        time.sleep(2.0)
+        ser.reset_input_buffer()
+
+        while not stop.is_set() and not _changed(target, generation):
+            raw = ser.readline()
+            if not raw:
+                continue  # timeout, not an error — the board may be quiet
+
+            line = raw.decode("utf-8", errors="replace").strip()
+            match = _LINE_RE.search(line)
+            if not match:
+                continue  # boot banner, partial line, or BLE log noise
+
+            state.update(
+                ir=int(match.group("ir")),
+                bpm=int(match.group("bpm")),
+                temp_c=float(match.group("temp")),
+                fsr=int(match.group("fsr")),
+                connected=True,
+                error=None,
+            )
+
+    except serial.SerialException as exc:
+        state.update(connected=False, error=f"serial: {exc}")
+        print(f"[serial] {exc}", flush=True)
+        stop.wait(2.0)
+    except Exception as exc:  # noqa: BLE001 - the reader thread must not die
+        state.update(connected=False, error=f"reader: {exc!r}")
+        print(f"[serial] unexpected: {exc!r}", flush=True)
+        stop.wait(2.0)
+    finally:
+        if ser is not None and ser.is_open:
+            try:
+                ser.close()
+            except Exception:
+                pass
+
+
+def run_simulator(state: SensorState, target: DeviceTarget, generation: int,
+                  stop: threading.Event) -> None:
     """Emit plausible glove data in the firmware's exact shape.
 
     Not a replay of real captures — we have none yet. It produces a slow
     squeeze/release cycle on the FSR plus a wandering heart rate, so every UI
-    state (resting, ramping, holding, releasing) is reachable without hardware.
-    Real ADC ranges must still be confirmed against the actual glove.
+    state is reachable without hardware. Real ADC ranges must still be confirmed
+    against an actual glove.
     """
-    state.update(connected=True, source="simulate", error=None)
+    device = {
+        "id": SIMULATED_DEVICE_ID,
+        "port": "simulated",
+        "description": "Simulated glove",
+        "manufacturer": None,
+        "product": None,
+        "vid": None,
+        "pid": None,
+        "stable_id": True,
+        "likely_glove": True,
+    }
+    state.update(connected=True, source="simulate", error=None, device=device)
     print("[simulate] generating synthetic glove data", flush=True)
 
     t0 = time.time()
     bpm = 72.0
 
-    while not stop.is_set():
+    while not stop.is_set() and not _changed(target, generation):
         t = time.time() - t0
 
         # ~12 s squeeze/release cycle, raised-cosine so it ramps rather than
@@ -196,7 +315,6 @@ def simulate_reader(state: SensorState, stop: threading.Event) -> None:
         fsr = int(120 + 2900 * (cycle ** 1.6) + random.gauss(0, 25))
         fsr = max(0, min(4095, fsr))
 
-        # Heart rate drifts, and rises a little under load.
         bpm += random.gauss(0, 0.6) + 0.02 * (72 + 25 * cycle - bpm)
         bpm = max(50.0, min(150.0, bpm))
 
@@ -211,32 +329,130 @@ def simulate_reader(state: SensorState, stop: threading.Event) -> None:
 
         stop.wait(0.005)  # match the firmware's delay(5)
 
+
+def reader_thread(state: SensorState, target: DeviceTarget, baud: int,
+                  stop: threading.Event) -> None:
+    """Follow whatever the target currently points at."""
+    while not stop.is_set():
+        device, simulate, generation = target.get()
+
+        if simulate:
+            run_simulator(state, target, generation, stop)
+            continue
+
+        if device is None:
+            state.update(connected=False, source="none", device=None,
+                         error="No glove paired.")
+            stop.wait(1.0)
+            continue
+
+        # Re-resolve by pairing id: the glove may have come back on a different
+        # port since it was paired.
+        live = resolve_device(device["id"]) or (
+            device if device["port"] in [d["port"] for d in scan_devices()] else None
+        )
+        if live is None:
+            state.update(connected=False, source="none", device=device,
+                         error=f"{device['description']} is not plugged in.")
+            stop.wait(2.0)
+            continue
+
+        read_serial(state, live, baud, target, generation, stop)
+
     state.update(connected=False, source="none")
 
 
 # =============================================================================
-# WEBSOCKET BROADCAST
+# WEBSOCKET
 # =============================================================================
 
-CLIENTS: Set[websockets.WebSocketServerProtocol] = set()
+CLIENTS: Set[Any] = set()
 
 
-async def handler(conn) -> None:
-    CLIENTS.add(conn)
-    print(f"[ws] client connected ({len(CLIENTS)} total)", flush=True)
+async def send_json(conn, payload: Dict[str, Any]) -> None:
     try:
-        # Clients have nothing to say to us — this bridge is one-directional.
-        # Draining anyway keeps pings flowing and detects a dead peer.
-        async for _ in conn:
-            pass
-    except websockets.ConnectionClosed:
+        await conn.send(json.dumps(payload))
+    except Exception:
         pass
-    finally:
-        CLIENTS.discard(conn)
-        print(f"[ws] client disconnected ({len(CLIENTS)} left)", flush=True)
 
 
-async def broadcaster(state: SensorState) -> None:
+async def handle_command(conn, data: Dict[str, Any], state: SensorState,
+                         target: DeviceTarget) -> None:
+    cmd = data.get("command")
+
+    if cmd == "list_devices":
+        await send_json(conn, {
+            "type": "device_list",
+            "devices": scan_devices(),
+            "paired": (target.get()[0] or {}).get("id"),
+            "simulated": target.get()[1],
+        })
+        return
+
+    if cmd == "pair":
+        device_id = data.get("device_id")
+
+        if device_id == SIMULATED_DEVICE_ID:
+            target.set(None, simulate=True)
+            await send_json(conn, {"type": "pair_result", "ok": True,
+                                   "device_id": SIMULATED_DEVICE_ID})
+            print("[pair] switched to the simulator", flush=True)
+            return
+
+        device = resolve_device(device_id) if device_id else None
+        if device is None:
+            await send_json(conn, {
+                "type": "pair_result", "ok": False, "device_id": device_id,
+                "error": "That glove is not plugged in.",
+            })
+            return
+
+        target.set(device, simulate=False)
+        await send_json(conn, {"type": "pair_result", "ok": True,
+                               "device_id": device["id"]})
+        print(f"[pair] paired with {device['description']} ({device['id']})", flush=True)
+        return
+
+    if cmd == "unpair":
+        target.set(None, simulate=False)
+        await send_json(conn, {"type": "pair_result", "ok": True, "device_id": None})
+        return
+
+
+def make_handler(state: SensorState, target: DeviceTarget):
+    async def handler(conn) -> None:
+        CLIENTS.add(conn)
+        print(f"[ws] client connected ({len(CLIENTS)} total)", flush=True)
+
+        # Tell a new client what is attached right away, so its pairing screen
+        # is populated before the first sensor frame arrives.
+        await send_json(conn, {
+            "type": "device_list",
+            "devices": scan_devices(),
+            "paired": (target.get()[0] or {}).get("id"),
+            "simulated": target.get()[1],
+        })
+
+        try:
+            async for message in conn:
+                if not isinstance(message, str):
+                    continue
+                try:
+                    data = json.loads(message)
+                except Exception:
+                    continue
+                if isinstance(data, dict):
+                    await handle_command(conn, data, state, target)
+        except websockets.ConnectionClosed:
+            pass
+        finally:
+            CLIENTS.discard(conn)
+            print(f"[ws] client disconnected ({len(CLIENTS)} left)", flush=True)
+
+    return handler
+
+
+async def broadcaster(state: SensorState, target: DeviceTarget) -> None:
     interval = 1.0 / BROADCAST_HZ
     while True:
         await asyncio.sleep(interval)
@@ -261,6 +477,13 @@ async def broadcaster(state: SensorState) -> None:
             "stale": stale,
             "source": sample.source,
             "error": sample.error,
+            "device": sample.device,
+            # Normally 1: each patient runs their own bridge against their own
+            # glove. Above 1 means several tabs or people are attached to THIS
+            # bridge and would each save the same squeeze as their own session,
+            # so the app warns. Reported rather than enforced — a forgotten
+            # browser tab must not lock someone out of their own hardware.
+            "viewers": len(CLIENTS),
         })
 
         await asyncio.gather(
@@ -273,25 +496,18 @@ async def broadcaster(state: SensorState) -> None:
 # MAIN
 # =============================================================================
 
-def list_ports() -> None:
-    ports = list(serial.tools.list_ports.comports())
-    if not ports:
-        print("No serial ports found. Is the glove plugged in?")
+def print_ports() -> None:
+    devices = scan_devices()
+    if not devices:
+        print("No candidate serial devices found. Is the glove plugged in?")
         return
-    print("Available serial ports:")
-    for p in ports:
-        print(f"  {p.device:<28} {p.description}")
-
-
-def guess_port() -> Optional[str]:
-    """Pick the most likely glove port, ignoring macOS built-ins."""
-    for p in serial.tools.list_ports.comports():
-        name = p.device.lower()
-        if "bluetooth" in name or "debug-console" in name:
-            continue
-        if "usbmodem" in name or "usbserial" in name or "wchusb" in name or "slab" in name:
-            return p.device
-    return None
+    print("Candidate devices:")
+    for d in devices:
+        mark = "*" if d["likely_glove"] else " "
+        stable = "" if d["stable_id"] else "   (no USB serial number — pairing is port-based)"
+        print(f" {mark} {d['port']:<28} {d['description']}")
+        print(f"     id: {d['id']}{stable}")
+    print("\n  * = recognised USB-serial chip commonly used on ESP32 boards")
 
 
 async def main_async(args: argparse.Namespace) -> None:
@@ -299,29 +515,35 @@ async def main_async(args: argparse.Namespace) -> None:
     stop = threading.Event()
 
     if args.simulate:
-        reader = threading.Thread(target=simulate_reader, args=(state, stop), daemon=True)
-    else:
-        port = args.port or guess_port()
-        if not port:
-            print(
-                "No glove serial port found.\n"
-                "  Plug the board in, or run with --simulate for synthetic data.\n"
-                "  Use --list-ports to see what's attached.",
-                file=sys.stderr,
-            )
+        target = DeviceTarget(None, simulate=True)
+    elif args.port:
+        match = next((d for d in scan_devices() if d["port"] == args.port), None)
+        if match is None:
+            print(f"No such serial device: {args.port}\n"
+                  f"  Run with --list-ports to see what is attached.", file=sys.stderr)
             sys.exit(2)
-        reader = threading.Thread(
-            target=serial_reader, args=(state, port, args.baud, stop), daemon=True
-        )
+        target = DeviceTarget(match, simulate=False)
+    else:
+        guess = autodetect()
+        if guess is not None:
+            print(f"[auto] attaching to {guess['description']} ({guess['port']})", flush=True)
+        else:
+            print("[auto] no single obvious glove — waiting for the app to pair one",
+                  flush=True)
+        target = DeviceTarget(guess, simulate=False)
 
+    reader = threading.Thread(
+        target=reader_thread, args=(state, target, args.baud, stop), daemon=True
+    )
     reader.start()
 
     print(f"[ws] listening on ws://{args.ws_host}:{args.ws_port}", flush=True)
     try:
         async with websockets.serve(
-            handler, args.ws_host, args.ws_port, ping_interval=20, ping_timeout=20
+            make_handler(state, target), args.ws_host, args.ws_port,
+            ping_interval=20, ping_timeout=20,
         ):
-            await broadcaster(state)
+            await broadcaster(state, target)
     finally:
         stop.set()
         reader.join(timeout=3.0)
@@ -331,16 +553,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Glove USB-serial to WebSocket bridge")
     parser.add_argument("--port", help="Serial device (default: autodetect)")
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD)
-    parser.add_argument("--ws-host", default="0.0.0.0")
+    parser.add_argument("--ws-host", default="127.0.0.1",
+                        help="Bind address (default: loopback only)")
     parser.add_argument("--ws-port", type=int, default=DEFAULT_WS_PORT)
     parser.add_argument("--simulate", action="store_true",
                         help="Generate synthetic data instead of reading hardware")
     parser.add_argument("--list-ports", action="store_true",
-                        help="List serial ports and exit")
+                        help="List candidate devices and exit")
     args = parser.parse_args()
 
     if args.list_ports:
-        list_ports()
+        print_ports()
         return
 
     try:
