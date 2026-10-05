@@ -1,2 +1,83 @@
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
 .env
 *.env
+!*.env.example
+
+# ---------------------------------------------------------------------------
+# Local dev toolchain (Flutter SDK + Python venv live under app/.devenv)
+# ---------------------------------------------------------------------------
+.devenv/
+
+# ---------------------------------------------------------------------------
+# Flutter / Dart
+# ---------------------------------------------------------------------------
+# .dart_tool holds per-machine build state AND the throwaway Chrome profile
+# that `flutter run -d chrome` creates. Never commit it: the profile carries
+# browser History, Login Data and Local Storage.
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+
+# pubspec.lock IS tracked on purpose — these are applications, and the lock
+# file is what makes a build reproducible.
+
+# ---------------------------------------------------------------------------
+# Android
+# ---------------------------------------------------------------------------
+# Machine-specific SDK paths.
+**/android/local.properties
+**/android/.gradle/
+**/android/captures/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# ---------------------------------------------------------------------------
+# iOS / macOS
+# ---------------------------------------------------------------------------
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/Flutter/App.framework
+**/Flutter/Flutter.framework
+**/Flutter/flutter_assets/
+**/Pods/
+*.xcuserstate
+**/xcuserdata/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Stale duplicates kept on disk but out of git.
+#
+# These are superseded copies that caused ~150 phantom analyzer errors before
+# being excluded. They remain in git history if anyone needs them back.
+# ---------------------------------------------------------------------------
+app/PT_accuracy/hand_flexion_app/therapy_app/
+app/PT_accuracy/hand_flexion_app/old_lib/
+app/PT_accuracy/hand_flexion_app/therapy_app.zip
+
+# Gradle caches can appear nested under a module too.
+**/.gradle/
