@@ -86,6 +86,7 @@ raw reading. The unprefixed column is the top-60% mean.
 |---|---|
 | [`webAppTest/sql/doctor_portal_setup.sql`](webAppTest/sql/doctor_portal_setup.sql) | Creates `profiles` + `doctor_patients`, their policies, and the signup trigger |
 | [`webAppTest/sql/fix_profiles_rls_recursion.sql`](webAppTest/sql/fix_profiles_rls_recursion.sql) | Fixes `42P17` infinite recursion that breaks every profile read |
+| [`webAppTest/sql/doctor_read_patient_data.sql`](webAppTest/sql/doctor_read_patient_data.sql) | Without it a doctor's dashboard silently shows nothing — RLS hides every patient row from them |
 | [`app/PT_accuracy/backend/sql/fix_identity_sequences.sql`](app/PT_accuracy/backend/sql/fix_identity_sequences.sql) | CSV imports left the id sequences behind, so a patient's first session fails |
 
 ---
