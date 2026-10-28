@@ -11,18 +11,24 @@ Built by the **Purdue MIND CTS-Glove Software Team**.
 
 ## What's here
 
-| Path | What it is | State |
-|---|---|---|
-| [`app/PT_accuracy/hand_flexion_app`](app/PT_accuracy/hand_flexion_app) | **Patient app.** Flutter web, 5 tabs. | Working |
-| [`app/PT_accuracy/backend`](app/PT_accuracy/backend) | Python: camera hand-tracking + glove sensor bridge | Working |
-| [`webAppTest`](webAppTest) | **Doctor portal.** Static HTML + Supabase | Working |
-| [`firmware`](firmware) | ESP32-C6 glove firmware | `CTS_IC2.ino` is the live sketch |
-| [`brand`](brand) | Logo master and exports | — |
-| [`app/Grip_strength`](app/Grip_strength), [`app/Pinch_strength`](app/Pinch_strength) | Earlier standalone prototypes | Superseded by the tabs in the patient app |
-| [`Research`](Research) | Goals and therapy references | — |
+Every directory below is live. Nothing here is a prototype or a leftover.
 
-**Start here:** [`app/RUNNING.md`](app/RUNNING.md) — toolchain setup and how to run
-all three processes.
+| Path | What it is |
+|---|---|
+| [`patient-app/`](patient-app) | **Patient app** — Flutter web, five tabs. What a patient uses. |
+| [`doctor-portal/`](doctor-portal) | **Doctor portal** — static HTML + Supabase. What a clinician uses. |
+| [`backend/`](backend) | Two Python services both portals depend on: the camera hand-tracker and the glove sensor bridge. |
+| [`db/`](db) | Everything about the database: the schema, and the numbered SQL scripts to run in order. |
+| [`firmware/`](firmware) | ESP32-C6 glove firmware. `CTS_IC2.ino` is the live sketch. |
+| [`brand/`](brand) | Logo master and the exports both apps use. |
+| [`Research/`](Research) | Project goals and therapy references. |
+
+**Start here:** [`RUNNING.md`](RUNNING.md) — toolchain setup and how to run the
+three processes.
+
+Earlier standalone grip and pinch prototypes, a Swift login prototype, and
+several empty placeholder files were removed once the patient app's tabs
+superseded them. They remain in git history.
 
 ---
 
@@ -84,10 +90,10 @@ raw reading. The unprefixed column is the top-60% mean.
 
 | Script | Why |
 |---|---|
-| [`webAppTest/sql/doctor_portal_setup.sql`](webAppTest/sql/doctor_portal_setup.sql) | Creates `profiles` + `doctor_patients`, their policies, and the signup trigger |
-| [`webAppTest/sql/fix_profiles_rls_recursion.sql`](webAppTest/sql/fix_profiles_rls_recursion.sql) | Fixes `42P17` infinite recursion that breaks every profile read |
-| [`webAppTest/sql/doctor_read_patient_data.sql`](webAppTest/sql/doctor_read_patient_data.sql) | Without it a doctor's dashboard silently shows nothing — RLS hides every patient row from them |
-| [`app/PT_accuracy/backend/sql/fix_identity_sequences.sql`](app/PT_accuracy/backend/sql/fix_identity_sequences.sql) | CSV imports left the id sequences behind, so a patient's first session fails |
+| [`db/01_doctor_portal_setup.sql`](db/01_doctor_portal_setup.sql) | Creates `profiles` + `doctor_patients`, their policies, and the signup trigger |
+| [`db/02_fix_profiles_rls_recursion.sql`](db/02_fix_profiles_rls_recursion.sql) | Fixes `42P17` infinite recursion that breaks every profile read |
+| [`db/03_doctor_read_patient_data.sql`](db/03_doctor_read_patient_data.sql) | Without it a doctor's dashboard silently shows nothing — RLS hides every patient row from them |
+| [`db/04_fix_identity_sequences.sql`](db/04_fix_identity_sequences.sql) | CSV imports left the id sequences behind, so a patient's first session fails |
 
 ---
 
@@ -95,11 +101,11 @@ raw reading. The unprefixed column is the top-60% mean.
 
 Two Vercel projects, because these are two separate sites.
 
-**Doctor portal** — root directory `webAppTest`, framework "Other", no build
+**Doctor portal** — root directory `doctor-portal`, framework "Other", no build
 command. Static.
 
-**Patient app** — root directory `app/PT_accuracy/hand_flexion_app`. The build
-fetches a pinned Flutter SDK; see [`vercel-build.sh`](app/PT_accuracy/hand_flexion_app/vercel-build.sh).
+**Patient app** — root directory `patient-app`. The build
+fetches a pinned Flutter SDK; see [`vercel-build.sh`](patient-app/vercel-build.sh).
 Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the project's environment
 variables (both are public-by-design client values, not secrets).
 

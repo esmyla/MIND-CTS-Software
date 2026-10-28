@@ -6,7 +6,7 @@
 !*.env.example
 
 # ---------------------------------------------------------------------------
-# Local dev toolchain (Flutter SDK + Python venv live under app/.devenv)
+# Local dev toolchain (Flutter SDK + Python venv live under .devenv/)
 # ---------------------------------------------------------------------------
 .devenv/
 
@@ -75,9 +75,7 @@ Thumbs.db
 # These are superseded copies that caused ~150 phantom analyzer errors before
 # being excluded. They remain in git history if anyone needs them back.
 # ---------------------------------------------------------------------------
-app/PT_accuracy/hand_flexion_app/therapy_app/
-app/PT_accuracy/hand_flexion_app/old_lib/
-app/PT_accuracy/hand_flexion_app/therapy_app.zip
+# (the stale duplicate trees these covered have since been deleted)
 
 # Gradle caches can appear nested under a module too.
 **/.gradle/
