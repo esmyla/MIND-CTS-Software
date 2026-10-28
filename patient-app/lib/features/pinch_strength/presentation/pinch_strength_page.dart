@@ -87,6 +87,7 @@ class _PinchStrengthPageState extends ConsumerState<PinchStrengthPage> {
       case _PinchStage.indexThumb:
         return HoldSessionView(
           key: const ValueKey('pinch-it'),
+          strengthBaseline: (baseIt != null && baseIt > 0) ? baseIt : null,
           title: 'Index-thumb pinch',
           instruction:
               'Pinch the sensor between your thumb and index finger, then '
@@ -103,6 +104,7 @@ class _PinchStrengthPageState extends ConsumerState<PinchStrengthPage> {
       case _PinchStage.middleThumb:
         return HoldSessionView(
           key: const ValueKey('pinch-mt'),
+          strengthBaseline: (baseMt != null && baseMt > 0) ? baseMt : null,
           title: 'Middle-thumb pinch',
           instruction:
               'Now move the sensor to your middle finger. Pinch between thumb '

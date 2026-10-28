@@ -35,6 +35,8 @@ class HomeScreen extends ConsumerWidget {
     final gripImprovementAsync = ref.watch(realGripImprovementProvider);
     final latestGripAsync = ref.watch(latestGripValueProvider);
     final exertionAsync = ref.watch(exertionScoreProvider);
+    final targetAsync = ref.watch(gripTargetProvider);
+    final recentAsync = ref.watch(recentSessionsProvider);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -239,6 +241,34 @@ class HomeScreen extends ConsumerWidget {
               ),
 
             const SizedBox(height: 20),
+
+            // ----------------------------------------------------------------
+            // Next target — a goal built from the patient's own best
+            // ----------------------------------------------------------------
+            if (!isGuest)
+              targetAsync.when(
+                data: (t) => t == null
+                    ? const SizedBox.shrink()
+                    : _NextTargetCard(target: t),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+
+            if (!isGuest) const SizedBox(height: 20),
+
+            // ----------------------------------------------------------------
+            // Recent sessions
+            // ----------------------------------------------------------------
+            if (!isGuest)
+              recentAsync.when(
+                data: (rows) => rows.isEmpty
+                    ? const SizedBox.shrink()
+                    : _RecentSessions(rows: rows),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+
+            if (!isGuest) const SizedBox(height: 20),
 
             // ----------------------------------------------------------------
             // Quick tips card
@@ -840,6 +870,140 @@ class _GuestBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Next target
+// ---------------------------------------------------------------------------
+
+class _NextTargetCard extends StatelessWidget {
+  const _NextTargetCard({required this.target});
+
+  final NextTarget target;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final pct = (target.progress * 100).round();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  target.isPersonalBest
+                      ? Icons.emoji_events_rounded
+                      : Icons.flag_rounded,
+                  size: 20,
+                  color: target.isPersonalBest ? Colors.amber.shade700 : cs.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  target.isPersonalBest ? 'Personal best!' : 'Next grip target',
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              target.isPersonalBest
+                  ? 'Your last session was your strongest yet. The next target '
+                      'has moved up with you.'
+                  : 'You are at $pct% of your next target. Your best so far is '
+                      '${target.best.round()}.',
+              style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(0.75)),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: target.progress,
+                minHeight: 8,
+                backgroundColor: cs.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Last ${target.latest.round()}',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                Text('Target ${target.target.round()}',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recent sessions
+// ---------------------------------------------------------------------------
+
+class _RecentSessions extends StatelessWidget {
+  const _RecentSessions({required this.rows});
+
+  final List<Map<String, dynamic>> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Recent sessions',
+                style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            ...rows.map((r) {
+              final at = DateTime.tryParse(r['at']?.toString() ?? '');
+              final ratio = r['ratio'] as double?;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 62,
+                      child: Text(r['kind']?.toString() ?? '',
+                          style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                    ),
+                    Expanded(
+                      child: Text(r['detail']?.toString() ?? '',
+                          style: tt.bodySmall
+                              ?.copyWith(color: cs.onSurface.withOpacity(0.7))),
+                    ),
+                    if (ratio != null)
+                      Text('${(ratio * 100).round()}%',
+                          style: tt.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: ratio >= 1 ? cs.primary : cs.onSurfaceVariant,
+                          )),
+                    const SizedBox(width: 10),
+                    Text(
+                      at == null ? '' : '${at.month}/${at.day}',
+                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

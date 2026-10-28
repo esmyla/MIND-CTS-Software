@@ -35,6 +35,7 @@ class HoldSessionView extends ConsumerStatefulWidget {
     required this.title,
     required this.instruction,
     required this.onComplete,
+    this.strengthBaseline,
     this.startLabel = 'Start hold',
     this.holdDuration = const Duration(seconds: 5),
     this.countdown = const Duration(seconds: 3),
@@ -45,6 +46,14 @@ class HoldSessionView extends ConsumerStatefulWidget {
 
   /// What the patient should physically do.
   final String instruction;
+
+  /// The patient's baseline for this measurement, when they have one.
+  ///
+  /// Without it the gauge can only show a raw ADC number, which tells a patient
+  /// nothing: 2216 is not good or bad, and a lower reading tomorrow may just
+  /// mean the glove sat differently. With it, the same reading becomes "82% of
+  /// your baseline", which is something they can act on.
+  final double? strengthBaseline;
 
   /// Called once a hold finishes. The host persists and advances.
   final Future<void> Function(HoldResult result) onComplete;
@@ -186,6 +195,7 @@ class _HoldSessionViewState extends ConsumerState<HoldSessionView> {
             sample: sample,
             phase: _phase,
             highlight: _phase == HoldPhase.capturing,
+            baseline: widget.strengthBaseline,
           ),
           const SizedBox(height: 24),
 
@@ -372,16 +382,25 @@ class _ForceGauge extends StatelessWidget {
     required this.sample,
     required this.phase,
     required this.highlight,
+    this.baseline,
   });
 
   final SensorSample sample;
   final HoldPhase phase;
   final bool highlight;
+  final double? baseline;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final fraction = sample.connected ? sample.fsrFraction : 0.0;
+    final hasBaseline = baseline != null && baseline! > 0;
+    // Against the baseline the bar answers "am I there yet"; against full ADC
+    // scale it answers nothing, since nobody squeezes to 4095.
+    final fraction = !sample.connected
+        ? 0.0
+        : hasBaseline
+            ? (sample.fsr / baseline!).clamp(0.0, 1.5) / 1.5
+            : sample.fsrFraction;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -395,27 +414,37 @@ class _ForceGauge extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text('FORCE',
+          Text(hasBaseline ? 'OF YOUR BASELINE' : 'FORCE',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: cs.onSurfaceVariant,
                     letterSpacing: 1.2,
                   )),
           const SizedBox(height: 8),
-          // Raw ADC, labelled as such. The glove is not calibrated to newtons
-          // or kilograms, so presenting a force unit would be a false claim.
           Text(
-            sample.connected ? '${sample.fsr}' : '—',
+            !sample.connected
+                ? '—'
+                : hasBaseline
+                    ? '${((sample.fsr / baseline!) * 100).round()}%'
+                    : '${sample.fsr}',
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: highlight ? cs.primary : cs.onSurface,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
           ),
-          Text('raw sensor units (0–${sample.fsrMax})',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: cs.onSurfaceVariant)),
+          // The raw ADC stays visible but secondary: it is what the hardware
+          // actually reports, and hiding it would make a reading impossible to
+          // debug. It is never labelled as force — the glove has no calibration
+          // to newtons or kilograms, so a force unit would be a false claim.
+          Text(
+            hasBaseline
+                ? '${sample.fsr} sensor units · baseline ${baseline!.round()}'
+                : 'raw sensor units (0–${sample.fsrMax})',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),

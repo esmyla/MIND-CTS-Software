@@ -4,58 +4,127 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Doctor Portal | Dashboard</title>
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <meta name="theme-color" content="#0f6ba8">
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0f6ba8" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
-  <body class="min-h-screen bg-slate-100 text-slate-900">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-        <div class="flex items-center gap-3">
-          <img src="assets/logo.png" alt="MIND CTS" class="h-9 w-9 shrink-0" />
-          <div>
-          <h1 class="text-xl font-bold">Patient Dashboard</h1>
-          <p id="patientIdText" class="text-xs text-slate-500"></p>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div class="flex min-w-0 items-center gap-3">
+          <img src="assets/logo.png" alt="" class="h-9 w-9 shrink-0" />
+          <div class="min-w-0">
+            <h1 id="patientName" class="truncate text-lg font-semibold leading-tight">Patient</h1>
+            <p id="patientMeta" class="truncate text-xs text-slate-500"></p>
           </div>
         </div>
-        <div class="flex gap-2">
-          <a href="patients.html" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Back to Patients</a>
-          <button id="logoutBtn" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Logout</button>
+        <div class="flex items-center gap-2">
+          <select id="rangeSelect" aria-label="Date range"
+            class="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm focus:ring-2 focus:ring-sky-500">
+            <option value="30">Last 30 days</option>
+            <option value="90" selected>Last 90 days</option>
+            <option value="365">Last year</option>
+            <option value="0">All time</option>
+          </select>
+          <button id="exportBtn"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">Export CSV</button>
+          <a href="patients.html"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">Patients</a>
+          <button id="logoutBtn"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">Logout</button>
         </div>
       </div>
     </header>
 
-    <main class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
-      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" id="kpiCards"></section>
-
-      <section class="grid gap-4 lg:grid-cols-2">
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="pinchChart" height="240"></canvas></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="gripChart" height="240"></canvas></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="flexionChart" height="240"></canvas></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><canvas id="sessionChart" height="240"></canvas></div>
+    <main class="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      <!-- At-a-glance: the answers, before any charts. -->
+      <section>
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">At a glance</h2>
+        <div id="summaryCards" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div>
       </section>
 
-      <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
-        <h2 class="text-lg font-semibold">Session Activity Log</h2>
-        <p class="mt-1 text-sm text-slate-500">Chronological record across pinch, grip, and flexion measurements.</p>
-        <div class="mt-4 overflow-x-auto">
-          <table class="min-w-full divide-y divide-slate-200 text-sm">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-3 py-2 text-left font-semibold">Timestamp</th>
-                <th class="px-3 py-2 text-left font-semibold">Session</th>
-                <th class="px-3 py-2 text-left font-semibold">Type</th>
-                <th class="px-3 py-2 text-left font-semibold">Details</th>
-              </tr>
-            </thead>
-            <tbody id="activityBody" class="divide-y divide-slate-100"></tbody>
-          </table>
+      <!-- Adherence: the thing a clinician asks first. -->
+      <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 class="text-base font-semibold">Exercise adherence</h2>
+          <p id="adherenceSummary" class="text-sm text-slate-500"></p>
         </div>
+        <div id="adherenceStrip" class="mt-4 flex flex-wrap gap-1"></div>
+        <p class="mt-3 text-xs text-slate-500">
+          Each square is one day in the selected range. Filled means at least one
+          prescribed exercise was completed.
+        </p>
+      </section>
+
+      <!-- Trends. -->
+      <section class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 class="mb-1 text-sm font-semibold">Grip strength</h3>
+          <p id="gripTrend" class="mb-3 text-xs"></p>
+          <div class="relative h-56"><canvas id="gripChart"></canvas></div>
+          <p id="gripEmpty" class="hidden py-8 text-center text-sm text-slate-500"></p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 class="mb-1 text-sm font-semibold">Pinch strength</h3>
+          <p id="pinchTrend" class="mb-3 text-xs"></p>
+          <div class="relative h-56"><canvas id="pinchChart"></canvas></div>
+          <p id="pinchEmpty" class="hidden py-8 text-center text-sm text-slate-500"></p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 class="mb-1 text-sm font-semibold">Wrist flexion</h3>
+          <p id="flexionTrend" class="mb-3 text-xs"></p>
+          <div class="relative h-56"><canvas id="flexionChart"></canvas></div>
+          <p id="flexionEmpty" class="hidden py-8 text-center text-sm text-slate-500"></p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 class="mb-1 text-sm font-semibold">Strength per exertion</h3>
+          <p id="exertionTrend" class="mb-3 text-xs"></p>
+          <div class="relative h-56"><canvas id="exertionChart"></canvas></div>
+          <p id="exertionEmpty" class="hidden py-8 text-center text-sm text-slate-500"></p>
+        </div>
+      </section>
+
+      <!-- Clinician notes. -->
+      <section class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <h2 class="text-base font-semibold">Notes</h2>
+        <p class="mt-1 text-xs text-slate-500">Visible only to you.</p>
+        <form id="noteForm" class="mt-3 flex flex-col gap-2 sm:flex-row">
+          <label for="noteBody" class="sr-only">New note</label>
+          <textarea id="noteBody" rows="2" placeholder="Observation, plan, follow-up…"
+            class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+          <button type="submit"
+            class="h-fit rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Add note</button>
+        </form>
+        <div id="notesList" class="mt-4 space-y-2"></div>
+      </section>
+
+      <!-- Raw record, collapsed by default: available, not in the way. -->
+      <section class="rounded-xl border border-slate-200 bg-white">
+        <details>
+          <summary class="cursor-pointer px-4 py-3 text-base font-semibold sm:px-5">
+            Session log
+            <span id="logCount" class="ml-2 text-sm font-normal text-slate-500"></span>
+          </summary>
+          <div class="overflow-x-auto border-t border-slate-200">
+            <table class="min-w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-4 py-2">Date</th>
+                  <th class="px-4 py-2">Type</th>
+                  <th class="px-4 py-2">Result</th>
+                  <th class="px-4 py-2">vs. baseline</th>
+                  <th class="px-4 py-2">Heart rate</th>
+                </tr>
+              </thead>
+              <tbody id="activityBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
     </main>
 
-    <script type="module" src="dashboard.js"></script>
+    <script type="module" src="dashboard.js?v=2"></script>
   </body>
 </html>

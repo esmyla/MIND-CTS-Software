@@ -41,6 +41,7 @@ class FsrGripPage extends ConsumerWidget {
           if (!hasBaseline) const _BaselinePrompt(),
           Expanded(
             child: HoldSessionView(
+              strengthBaseline: hasBaseline ? baselineGrip : null,
               title: hasBaseline ? 'Grip strength' : 'Baseline grip',
               instruction: hasBaseline
                   ? 'Wear the glove and squeeze your whole hand into a fist, '

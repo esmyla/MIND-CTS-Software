@@ -102,6 +102,7 @@ raw reading. The unprefixed column is the top-60% mean.
 | [`db/03_doctor_read_patient_data.sql`](db/03_doctor_read_patient_data.sql) | Without it a doctor's dashboard silently shows nothing — RLS hides every patient row from them |
 | [`db/04_fix_identity_sequences.sql`](db/04_fix_identity_sequences.sql) | CSV imports left the id sequences behind, so a patient's first session fails |
 | [`db/05_adherence_and_exertion.sql`](db/05_adherence_and_exertion.sql) | Adds `pt_sessions` and the heart-rate columns. Until it runs, exercise adherence stays local-only and heart rate is dropped from saves |
+| [`db/06_clinician_notes.sql`](db/06_clinician_notes.sql) | Adds `patient_notes`. The dashboard's Notes panel says so until it runs |
 
 ---
 
@@ -124,6 +125,25 @@ socket; the browser blocks it. Those tabs degrade to an explanatory message on a
 hosted build, and Home and PT Tracking work fully.
 
 ---
+
+## Reading the numbers
+
+Neither portal shows a raw measurement on its own, because none of them mean
+anything in isolation. A grip reading is a 12-bit ADC value from an uncalibrated
+FSR: `1400` is not good or bad, and a lower one tomorrow may only mean the glove
+sat differently.
+
+- **Patients** see force as a percentage of their own baseline, with the raw
+  value kept visible underneath so a reading can still be debugged. Their goal
+  is their own best session, not a population norm — there is no clinically
+  meaningful absolute grip number to hold someone to.
+- **Clinicians** see percentage change against baseline, plus a trend verdict:
+  improving, plateaued, declining, or *too early to say*. The last one matters —
+  the dashboard refuses to call a trend from fewer than three sessions, because
+  two points always have a slope and reporting it would turn ordinary
+  session-to-session variation into a clinical finding.
+- Shared logic lives in [`doctor-portal/insights.js`](doctor-portal/insights.js)
+  so the two ends cannot drift into saying different things about the same data.
 
 ## Known issues
 
