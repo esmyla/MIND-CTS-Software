@@ -100,6 +100,7 @@ class StrengthRepository {
     double? baseGrip,
     double? baseIt,
     double? baseMt,
+    int? baseBpmRest,
   }) async {
     final client = _client;
     final userId = currentUserId;
@@ -110,20 +111,32 @@ class StrengthRepository {
       if (baseGrip != null) 'base_grip': baseGrip,
       if (baseIt != null) 'base_it': baseIt,
       if (baseMt != null) 'base_mt': baseMt,
+      if (baseBpmRest != null) 'base_bpm_rest': baseBpmRest,
     };
 
-    try {
-      final existing = await fetchBaseline();
-      if (existing == null) {
-        await client.from('baseline').insert(payload);
-      } else {
-        await client.from('baseline').update(payload).eq('user_id', userId);
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final existing = await fetchBaseline();
+        if (existing == null) {
+          await client.from('baseline').insert(payload);
+        } else {
+          await client.from('baseline').update(payload).eq('user_id', userId);
+        }
+        return true;
+      } on PostgrestException catch (e) {
+        if (e.code == _unknownColumn &&
+            payload.keys.any(_optionalColumns.contains)) {
+          payload.removeWhere((k, _) => _optionalColumns.contains(k));
+          continue;
+        }
+        debugPrint('[StrengthRepository] saveBaseline failed: $e');
+        return false;
+      } catch (e) {
+        debugPrint('[StrengthRepository] saveBaseline failed: $e');
+        return false;
       }
-      return true;
-    } catch (e) {
-      debugPrint('[StrengthRepository] saveBaseline failed: $e');
-      return false;
     }
+    return false;
   }
 
   // ------------------------------------------------------------------
@@ -132,6 +145,18 @@ class StrengthRepository {
 
   /// Postgres error code for a unique-constraint violation.
   static const _uniqueViolation = '23505';
+
+  /// PostgREST's code for "that column is not in the schema cache".
+  static const _unknownColumn = 'PGRST204';
+
+  /// Columns added by db/05_adherence_and_exertion.sql.
+  ///
+  /// The app writes heart rate, but a database that has not had 05 applied
+  /// rejects the whole insert with PGRST204 — which would mean a patient loses
+  /// a real strength measurement over an optional extra field. On that error we
+  /// drop these and retry, so the session is saved either way and heart rate
+  /// starts recording by itself once the migration lands.
+  static const _optionalColumns = {'bpm_avg', 'bpm_peak', 'base_bpm_rest'};
 
   /// Insert [payload] into [table], retrying on a primary-key collision.
   ///
@@ -160,6 +185,13 @@ class StrengthRepository {
         }
         return true;
       } on PostgrestException catch (e) {
+        if (e.code == _unknownColumn &&
+            payload.keys.any(_optionalColumns.contains)) {
+          payload.removeWhere((k, _) => _optionalColumns.contains(k));
+          debugPrint('[StrengthRepository] $table: dropping heart-rate columns '
+              '(run db/05_adherence_and_exertion.sql to record them)');
+          continue; // same attempt budget, now without the optional fields
+        }
         if (e.code != _uniqueViolation || attempt == maxAttempts) {
           debugPrint('[StrengthRepository] $table insert failed: $e');
           return false;
@@ -181,6 +213,8 @@ class StrengthRepository {
   Future<int?> saveGripSession({
     required double fsrPalm,
     required double? ratio,
+    int? bpmAvg,
+    int? bpmPeak,
   }) async {
     final client = _client;
     final userId = currentUserId;
@@ -194,6 +228,10 @@ class StrengthRepository {
       // Null rather than 0 when there is no baseline: 0 would read as
       // "measured, and the patient scored nothing".
       'r_fsr_palm': ratio,
+      // Null when no finger was on the heart-rate sensor, which is normal
+      // during a grip. A stored 0 would read as bradycardia.
+      'bpm_avg': bpmAvg,
+      'bpm_peak': bpmPeak,
     });
     return ok ? sessionId : null;
   }
@@ -204,6 +242,8 @@ class StrengthRepository {
     required double mt,
     required double? ratioIt,
     required double? ratioMt,
+    int? bpmAvg,
+    int? bpmPeak,
   }) async {
     final client = _client;
     final userId = currentUserId;
@@ -217,6 +257,8 @@ class StrengthRepository {
       'mt': mt,
       'r_it': ratioIt,
       'r_mt': ratioMt,
+      'bpm_avg': bpmAvg,
+      'bpm_peak': bpmPeak,
     });
     return ok ? sessionId : null;
   }

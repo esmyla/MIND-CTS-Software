@@ -34,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
     final realChartAsync = ref.watch(realFlexionChartProvider);
     final gripImprovementAsync = ref.watch(realGripImprovementProvider);
     final latestGripAsync = ref.watch(latestGripValueProvider);
+    final exertionAsync = ref.watch(exertionScoreProvider);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -154,6 +155,27 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
+
+            if (!isGuest) ...[
+              const SizedBox(height: 12),
+              exertionAsync.when(
+                data: (score) => _StatCard(
+                  icon: Icons.favorite_rounded,
+                  iconColor: score == null
+                      ? cs.outline
+                      : (score >= 100 ? cs.primary : cs.error),
+                  label: 'Strength per Exertion',
+                  value: score == null ? '—' : '${score.toStringAsFixed(0)}%',
+                  subtitle: score == null
+                      ? 'Needs a session with heart rate'
+                      : 'Force vs. heart rate, against baseline',
+                  subtitleIcon:
+                      score == null ? Icons.info_outline_rounded : null,
+                ),
+                loading: () => const _StatCardSkeleton(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+            ],
 
             const SizedBox(height: 20),
 

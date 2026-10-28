@@ -75,6 +75,41 @@ final latestGripValueProvider = FutureProvider<double?>((ref) async {
 });
 
 // ---------------------------------------------------------------------------
+// Strength per unit of exertion
+// ---------------------------------------------------------------------------
+
+/// The latest grip session's strength-to-exertion score, as a percentage.
+///
+/// 100% means the patient produced their baseline force at their baseline
+/// heart rate. Above 100% is more force for proportionally less cardiovascular
+/// cost, which is what recovery looks like.
+///
+/// Null until there is a session carrying BOTH a baseline-relative strength
+/// ratio and a heart rate measured against a known resting rate. Shown as
+/// "needs heart rate" rather than a number, because a half-computed score would
+/// be read as a real one.
+final exertionScoreProvider = FutureProvider<double?>((ref) async {
+  final rows = await ref.watch(strengthHistoryProvider('grip').future);
+  if (rows.isEmpty) return null;
+
+  final baseline = await ref.watch(baselineProvider.future);
+  final restingBpm = _asDouble(baseline?['base_bpm_rest'])?.round();
+  if (restingBpm == null || restingBpm <= 0) return null;
+
+  for (final row in rows.reversed) {
+    final strengthRatio = _asDouble(row['r_fsr_palm']);
+    final bpm = _asDouble(row['bpm_avg']);
+    if (strengthRatio == null || strengthRatio <= 0) continue;
+    if (bpm == null || bpm <= 0) continue;
+
+    final exertion = bpm / restingBpm;
+    if (exertion <= 0) continue;
+    return (strengthRatio / exertion) * 100.0;
+  }
+  return null;
+});
+
+// ---------------------------------------------------------------------------
 // Session dates
 // ---------------------------------------------------------------------------
 

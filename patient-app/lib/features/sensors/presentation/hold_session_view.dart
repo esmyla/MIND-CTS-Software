@@ -110,7 +110,7 @@ class _HoldSessionViewState extends ConsumerState<HoldSessionView> {
       // regardless of how fast the bridge pushes.
       if (_phase == HoldPhase.capturing) {
         final sample = ref.read(sensorServiceProvider).last;
-        if (sample.connected) _buffer.add(sample.fsr);
+        if (sample.connected) _buffer.add(sample.fsr, bpm: sample.bpm);
       }
 
       setState(() => _elapsed += _tick);

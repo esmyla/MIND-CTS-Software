@@ -51,11 +51,24 @@ class HoldResult {
   final int sampleCount;
   final Duration duration;
 
+  /// Mean heart rate during the hold, or null if no finger was on the sensor.
+  ///
+  /// The MAX30102 only reports a usable rate when a finger is covering it, and
+  /// the firmware zeroes the value otherwise, so "no reading" is a completely
+  /// normal outcome for a grip session. Null rather than 0: a stored 0 would
+  /// read as bradycardia.
+  final int? bpmAvg;
+
+  /// Highest heart rate seen during the hold.
+  final int? bpmPeak;
+
   const HoldResult({
     required this.value,
     required this.peak,
     required this.sampleCount,
     required this.duration,
+    this.bpmAvg,
+    this.bpmPeak,
   });
 
   /// A hold with almost no data behind it — the glove dropped out mid-capture,
@@ -70,6 +83,36 @@ class HoldResult {
     if (baseline == null || baseline <= 0) return null;
     return value / baseline;
   }
+
+  /// How hard the patient's cardiovascular system worked, relative to their own
+  /// resting rate. 1.0 means the hold cost them nothing measurable.
+  double? exertionAgainst(int? restingBpm) {
+    if (restingBpm == null || restingBpm <= 0) return null;
+    final avg = bpmAvg;
+    if (avg == null || avg <= 0) return null;
+    return avg / restingBpm;
+  }
+
+  /// Strength per unit of exertion — the combined measure asked for in
+  /// `Research/SoftwareGoals.md`.
+  ///
+  /// Strength ratio divided by exertion ratio. Above 1.0 means the patient is
+  /// producing more force than baseline for proportionally less cardiovascular
+  /// cost, which is what recovery should look like; the same force at a higher
+  /// heart rate scores lower, which is the point of combining them at all.
+  ///
+  /// Null unless BOTH baselines exist. A half-known score would be read as a
+  /// real one and quietly compared against scores that meant something else.
+  ///
+  /// Deliberately computed, never stored: the right definition is still a
+  /// clinical question, and a stored score silently becomes wrong when the
+  /// definition changes.
+  double? efficiencyScore({double? strengthBaseline, int? restingBpm}) {
+    final strength = ratioTo(strengthBaseline);
+    final exertion = exertionAgainst(restingBpm);
+    if (strength == null || exertion == null || exertion <= 0) return null;
+    return strength / exertion;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -82,16 +125,21 @@ class HoldResult {
 /// and the clock. This just accumulates and reports.
 class HoldBuffer {
   final List<int> _samples = [];
+  final List<int> _bpm = [];
   DateTime? _startedAt;
 
   void start() {
     _samples.clear();
+    _bpm.clear();
     _startedAt = DateTime.now();
   }
 
-  void add(int value) {
+  /// Record one reading. [bpm] is ignored when it is null or 0, which is what
+  /// the firmware reports whenever no finger is on the heart-rate sensor.
+  void add(int value, {int? bpm}) {
     if (_startedAt == null) return;
     _samples.add(value);
+    if (bpm != null && bpm > 0) _bpm.add(bpm);
   }
 
   int get sampleCount => _samples.length;
@@ -107,6 +155,10 @@ class HoldBuffer {
       duration: _startedAt == null
           ? Duration.zero
           : DateTime.now().difference(_startedAt!),
+      bpmAvg: _bpm.isEmpty
+          ? null
+          : (_bpm.reduce((a, b) => a + b) / _bpm.length).round(),
+      bpmPeak: _bpm.isEmpty ? null : _bpm.reduce((a, b) => a > b ? a : b),
     );
     _startedAt = null;
     return result;

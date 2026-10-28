@@ -87,6 +87,60 @@ void main() {
     });
   });
 
+  group('exertion and efficiency', () {
+    HoldResult hold({double value = 1500, int? bpm}) => HoldResult(
+          value: value,
+          peak: 1800,
+          sampleCount: 50,
+          duration: const Duration(seconds: 5),
+          bpmAvg: bpm,
+        );
+
+    test('exertion is null without a resting rate', () {
+      expect(hold(bpm: 90).exertionAgainst(null), isNull);
+      expect(hold(bpm: 90).exertionAgainst(0), isNull);
+    });
+
+    test('exertion is null when no heart rate was captured', () {
+      // The firmware reports 0 whenever no finger is on the sensor, which is
+      // normal during a grip — it must not be read as a real measurement.
+      expect(hold(bpm: null).exertionAgainst(60), isNull);
+      expect(hold(bpm: 0).exertionAgainst(60), isNull);
+    });
+
+    test('exertion is heart rate relative to rest', () {
+      expect(hold(bpm: 90).exertionAgainst(60), closeTo(1.5, 1e-9));
+    });
+
+    test('efficiency needs BOTH baselines, not one', () {
+      // A half-known score would be compared against scores that meant
+      // something else entirely.
+      expect(hold(bpm: 90).efficiencyScore(strengthBaseline: null, restingBpm: 60), isNull);
+      expect(hold(bpm: null).efficiencyScore(strengthBaseline: 1000, restingBpm: 60), isNull);
+      expect(hold(bpm: 90).efficiencyScore(strengthBaseline: 1000, restingBpm: null), isNull);
+    });
+
+    test('same force at a higher heart rate scores worse', () {
+      final easy = hold(value: 1500, bpm: 70).efficiencyScore(
+          strengthBaseline: 1000, restingBpm: 60)!;
+      final strained = hold(value: 1500, bpm: 110).efficiencyScore(
+          strengthBaseline: 1000, restingBpm: 60)!;
+      expect(strained, lessThan(easy));
+    });
+
+    test('baseline force at baseline heart rate scores exactly 1.0', () {
+      final score = hold(value: 1000, bpm: 60)
+          .efficiencyScore(strengthBaseline: 1000, restingBpm: 60);
+      expect(score, closeTo(1.0, 1e-9));
+    });
+
+    test('more force for the same effort scores above 1.0', () {
+      final score = hold(value: 1400, bpm: 60)
+          .efficiencyScore(strengthBaseline: 1000, restingBpm: 60);
+      expect(score, greaterThan(1.0));
+    });
+  });
+
   group('HoldBuffer', () {
     test('ignores samples added before start', () {
       final buffer = HoldBuffer();
@@ -107,6 +161,26 @@ void main() {
       expect(result.value, 400);
       expect(result.peak, 500);
       expect(result.sampleCount, 5);
+    });
+
+    test('ignores zero heart rates, which mean "no finger on the sensor"', () {
+      final buffer = HoldBuffer()..start();
+      buffer.add(100, bpm: 0);
+      buffer.add(200, bpm: 0);
+      final result = buffer.finish();
+      expect(result.sampleCount, 2, reason: 'force samples still count');
+      expect(result.bpmAvg, isNull);
+      expect(result.bpmPeak, isNull);
+    });
+
+    test('averages only the heart rates that were real', () {
+      final buffer = HoldBuffer()..start();
+      buffer.add(100, bpm: 0);
+      buffer.add(100, bpm: 80);
+      buffer.add(100, bpm: 100);
+      final result = buffer.finish();
+      expect(result.bpmAvg, 90);
+      expect(result.bpmPeak, 100);
     });
 
     test('start clears a previous hold', () {

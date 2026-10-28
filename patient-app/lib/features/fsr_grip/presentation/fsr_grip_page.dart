@@ -98,7 +98,15 @@ class FsrGripPage extends ConsumerWidget {
 
     // No baseline yet: this hold establishes it, and also counts as session 1.
     if (baselineGrip == null) {
-      final ok = await repo.saveBaseline(baseGrip: result.value);
+      // The first hold also fixes resting heart rate. Not ideal — a true
+      // resting rate would be measured before any exertion — but it is the
+      // only heart-rate reading we are certain to have, and an approximate
+      // denominator beats having no exertion measure at all. Flagged in the
+      // README as worth replacing with a proper calibration step.
+      final ok = await repo.saveBaseline(
+        baseGrip: result.value,
+        baseBpmRest: result.bpmAvg,
+      );
       if (!ok) {
         messenger.showSnackBar(
           const SnackBar(content: Text('Could not save baseline.')),
@@ -112,6 +120,8 @@ class FsrGripPage extends ConsumerWidget {
     final sessionId = await repo.saveGripSession(
       fsrPalm: result.value,
       ratio: result.ratioTo(effectiveBaseline),
+      bpmAvg: result.bpmAvg,
+      bpmPeak: result.bpmPeak,
     );
 
     ref.invalidate(strengthHistoryProvider('grip'));

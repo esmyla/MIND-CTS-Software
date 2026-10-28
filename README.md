@@ -45,7 +45,14 @@ Five tabs: **Flexion**, **FSR Grip**, **Home**, **PT Tracking**, **Pinch**.
 - **Home** — streak, session calendar, flexion trend and grip change, from
   Supabase.
 - **PT Tracking** — six standard CTS exercises with a guided step timer and
-  per-day adherence.
+  per-day adherence, stored server-side so a clinician can see it. The local
+  store is kept as an offline cache, so the tab still works with no network and
+  in guest mode.
+- **Strength per exertion** — the glove's heart rate is recorded on each grip
+  and pinch session and shown on Home as force relative to cardiovascular cost.
+  This is Phase 4 of `Research/SoftwareGoals.md`. The score is computed, never
+  stored: its definition is still a clinical question, and a stored score
+  silently becomes wrong when the definition changes.
 
 ### Why there are two Python processes
 
@@ -94,6 +101,7 @@ raw reading. The unprefixed column is the top-60% mean.
 | [`db/02_fix_profiles_rls_recursion.sql`](db/02_fix_profiles_rls_recursion.sql) | Fixes `42P17` infinite recursion that breaks every profile read |
 | [`db/03_doctor_read_patient_data.sql`](db/03_doctor_read_patient_data.sql) | Without it a doctor's dashboard silently shows nothing — RLS hides every patient row from them |
 | [`db/04_fix_identity_sequences.sql`](db/04_fix_identity_sequences.sql) | CSV imports left the id sequences behind, so a patient's first session fails |
+| [`db/05_adherence_and_exertion.sql`](db/05_adherence_and_exertion.sql) | Adds `pt_sessions` and the heart-rate columns. Until it runs, exercise adherence stays local-only and heart rate is dropped from saves |
 
 ---
 
@@ -132,3 +140,10 @@ hosted build, and Home and PT Tracking work fully.
 - The glove has never been exercised end to end against this app. Everything on
   the sensor path is verified against the bridge's `--simulate` mode, so real
   ADC ranges are unconfirmed.
+- Resting heart rate is captured from the patient's first grip hold, which is
+  not actually a resting measurement. It is the only reading we are certain to
+  have, and an approximate denominator beats no exertion measure at all, but a
+  proper calibration step before the first hold would be better.
+- The flexion exercise still has no baseline step, so `baseline.base_flex_deg`
+  and `base_rep_count` are never written. Grip and pinch both calibrate; flexion
+  does not.

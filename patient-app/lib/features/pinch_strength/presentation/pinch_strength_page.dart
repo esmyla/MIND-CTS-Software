@@ -160,6 +160,12 @@ class _PinchStrengthPageState extends ConsumerState<PinchStrengthPage> {
       mt: mt.value,
       ratioIt: it.ratioTo(effectiveIt),
       ratioMt: mt.ratioTo(effectiveMt),
+      // A pinch session is two holds; take whichever actually produced a
+      // reading, preferring the later one as the more exerted of the two.
+      bpmAvg: mt.bpmAvg ?? it.bpmAvg,
+      bpmPeak: [mt.bpmPeak, it.bpmPeak].whereType<int>().isEmpty
+          ? null
+          : [mt.bpmPeak, it.bpmPeak].whereType<int>().reduce((a, b) => a > b ? a : b),
     );
 
     ref.invalidate(strengthHistoryProvider('pinch'));
