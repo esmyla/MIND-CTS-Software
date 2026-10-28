@@ -33,16 +33,25 @@ create table if not exists public.pt_sessions (
   -- working through every rep. Worth distinguishing: partial adherence is a
   -- different clinical signal from none.
   completed    boolean not null default true,
-  completed_at timestamptz not null default now()
+  completed_at timestamptz not null default now(),
+  -- The patient's LOCAL calendar day, supplied by the app.
+  --
+  -- A plain column rather than an index on (completed_at::date), for two
+  -- reasons. Postgres refuses that expression in an index because casting
+  -- timestamptz to date depends on the session TimeZone and so is not
+  -- IMMUTABLE. And it would be the wrong day anyway: adherence is a human
+  -- notion of "today", so a patient exercising at 11pm would have it counted
+  -- against tomorrow under UTC.
+  completed_on date not null default ((now() at time zone 'utc')::date)
 );
 
 -- One row per exercise per day. Repeating an exercise the same day is normal
 -- and should not inflate the count, so the insert upserts onto this.
 create unique index if not exists pt_sessions_user_exercise_day
-  on public.pt_sessions (user_id, exercise_id, (completed_at::date));
+  on public.pt_sessions (user_id, exercise_id, completed_on);
 
 create index if not exists pt_sessions_user_idx
-  on public.pt_sessions (user_id, completed_at desc);
+  on public.pt_sessions (user_id, completed_on desc);
 
 alter table public.pt_sessions enable row level security;
 

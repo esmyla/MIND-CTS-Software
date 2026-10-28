@@ -62,14 +62,11 @@ class PtRepository {
     if (!canSync) return local;
 
     try {
-      final start = DateTime(day.year, day.month, day.day).toUtc();
-      final end = start.add(const Duration(days: 1));
       final rows = await _client!
           .from('pt_sessions')
           .select('exercise_id')
           .eq('user_id', _userId!)
-          .gte('completed_at', start.toIso8601String())
-          .lt('completed_at', end.toIso8601String());
+          .eq('completed_on', dayKey(day));
 
       final remote = <String>{
         for (final r in rows) (r['exercise_id'] ?? '').toString(),
@@ -100,22 +97,17 @@ class PtRepository {
     }
 
     try {
-      final since = DateTime(today.year, today.month, today.day)
-          .subtract(Duration(days: days - 1))
-          .toUtc();
+      final since = today.subtract(Duration(days: days - 1));
       final rows = await _client!
           .from('pt_sessions')
-          .select('completed_at')
+          .select('completed_on')
           .eq('user_id', _userId!)
-          .gte('completed_at', since.toIso8601String());
+          .gte('completed_on', dayKey(since));
 
-      final distinct = <String>{};
-      for (final r in rows) {
-        final raw = r['completed_at'];
-        if (raw is! String) continue;
-        final parsed = DateTime.tryParse(raw);
-        if (parsed != null) distinct.add(dayKey(parsed.toLocal()));
-      }
+      final distinct = <String>{
+        for (final r in rows)
+          if (r['completed_on'] != null) r['completed_on'].toString(),
+      };
       return distinct.length;
     } catch (e) {
       debugPrint('[PtRepository] activeDays failed: $e');
@@ -149,8 +141,11 @@ class PtRepository {
           'user_id': _userId,
           'exercise_id': exerciseId,
           'completed': fully,
+          // The patient's local day, not the server's. Someone exercising at
+          // 11pm should have it counted today.
+          'completed_on': dayKey(today),
         },
-        onConflict: 'user_id,exercise_id,(completed_at::date)',
+        onConflict: 'user_id,exercise_id,completed_on',
       );
     } catch (e) {
       // The local write already succeeded, so the patient sees their progress
@@ -168,14 +163,11 @@ class PtRepository {
     if (!canSync) return;
 
     try {
-      final start = DateTime(today.year, today.month, today.day).toUtc();
-      final end = start.add(const Duration(days: 1));
       await _client!
           .from('pt_sessions')
           .delete()
           .eq('user_id', _userId!)
-          .gte('completed_at', start.toIso8601String())
-          .lt('completed_at', end.toIso8601String());
+          .eq('completed_on', dayKey(today));
     } catch (e) {
       debugPrint('[PtRepository] resetToday sync failed: $e');
     }
