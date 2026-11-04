@@ -12,19 +12,73 @@ const status = document.getElementById("samStatus");
 // Kept client-side so SAM stays stateless across restarts.
 const history = [];
 
+// The model still reaches for markdown occasionally. Render the handful of
+// constructs it uses rather than showing raw asterisks and pipes. Built from
+// text nodes, never innerHTML — this is model output.
+function render(el, text) {
+  el.replaceChildren();
+
+  for (const line of String(text).split("\n")) {
+    const row = document.createElement("div");
+
+    // A markdown table separator (|---|---|) carries no information once the
+    // table is flattened.
+    if (/^\s*\|[\s|:-]+\|\s*$/.test(line)) continue;
+
+    let body = line;
+    let bullet = false;
+    if (/^\s*[-*]\s+/.test(line)) {
+      body = line.replace(/^\s*[-*]\s+/, "");
+      bullet = true;
+    } else if (/^\s*\|/.test(line)) {
+      // Flatten a table row into "a · b · c".
+      body = line.replace(/^\s*\|/, "").replace(/\|\s*$/, "")
+                 .split("|").map((c) => c.trim()).filter(Boolean).join(" · ");
+    }
+
+    if (bullet) {
+      row.className = "flex gap-1.5";
+      const dot = document.createElement("span");
+      dot.textContent = "•";
+      dot.className = "shrink-0";
+      row.appendChild(dot);
+    }
+
+    const span = document.createElement("span");
+    // **bold** and `code`; everything else stays literal text.
+    for (const part of body.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)) {
+      if (!part) continue;
+      if (part.startsWith("**") && part.endsWith("**")) {
+        const b = document.createElement("strong");
+        b.textContent = part.slice(2, -2);
+        span.appendChild(b);
+      } else if (part.startsWith("`") && part.endsWith("`")) {
+        const c = document.createElement("code");
+        c.className = "rounded bg-black/10 px-1 text-[0.95em]";
+        c.textContent = part.slice(1, -1);
+        span.appendChild(c);
+      } else {
+        span.appendChild(document.createTextNode(part));
+      }
+    }
+    row.appendChild(span);
+    el.appendChild(row);
+  }
+}
+
 function bubble(role, text, { pending = false } = {}) {
   const row = document.createElement("div");
   row.className = role === "user" ? "flex justify-end" : "flex justify-start";
 
   const el = document.createElement("div");
   el.className = [
-    "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
+    "max-w-[85%] space-y-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
     role === "user"
       ? "bg-sky-600 text-white rounded-br-sm"
       : "bg-slate-100 text-slate-800 rounded-bl-sm",
     pending ? "opacity-60" : "",
   ].join(" ");
-  el.textContent = text;
+  render(el, text);
 
   row.appendChild(el);
   log.appendChild(row);
@@ -77,11 +131,11 @@ form.addEventListener("submit", async (e) => {
 
   try {
     const reply = await ask(message);
-    thinking.textContent = reply;
+    render(thinking, reply);
     thinking.classList.remove("opacity-60");
     history.push({ role: "assistant", content: reply });
   } catch (err) {
-    thinking.textContent = err.message;
+    render(thinking, err.message);
     thinking.className =
       "max-w-[85%] rounded-2xl rounded-bl-sm bg-rose-50 px-3.5 py-2 text-sm text-rose-700";
   } finally {
