@@ -12,3 +12,9 @@ websockets
 pyserial
 supabase
 python-dotenv
+
+# SAM clinical assistant (backend/sam). LangChain talks to Purdue's RCAC
+# endpoint; the Supabase client here is used with the DOCTOR'S access token,
+# never a service-role key.
+langchain-core
+langchain-openai
