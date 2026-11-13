@@ -1,0 +1,46 @@
+// #define HEATER_PIN 5  // GPIO connected to MOSFET Gate
+
+// void setup() {
+//   pinMode(HEATER_PIN, OUTPUT);  // Set the MOSFET gate pin as output
+//   Serial.begin(9600);         // Start Serial communication at 115200 baud
+//   while(!Serial) { }            // Wait for Serial Monitor to open (optional)
+// }
+
+// void loop() {
+//   // Turn heating pad ON
+//   digitalWrite(HEATER_PIN, HIGH);
+//   Serial.println("Heating pad: ON");
+//   delay(50000);  // Keep it ON for 2 seconds
+
+// }
+#define TEMP_PIN A2        // TMP36 output connected to A0
+#define HEATER_PIN 5       // MOSFET gate (optional, if testing heater)
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(HEATER_PIN, OUTPUT);
+  digitalWrite(HEATER_PIN, HIGH);  // heater OFF at start
+}
+
+void loop() {
+  // Read TMP36
+  int raw = analogRead(TEMP_PIN);
+  float voltage = raw * (5.0 / 1023.0);
+
+  // TMP36 conversion
+  float tempC = (voltage - 0.5) * 100.0;
+  float tempF = tempC * 9.0 / 5.0 + 32.0;
+
+  // Print to Serial Monitor
+  Serial.print("Raw: ");
+  Serial.print(raw);
+  Serial.print(" | Voltage: ");
+  Serial.print(voltage, 3);
+  Serial.print(" V | Temp: ");
+  Serial.print(tempC, 2);
+  Serial.print(" °C  /  ");
+  Serial.print(tempF, 2);
+  Serial.println(" °F");
+
+  delay(1000);  // update every 1 second
+}
